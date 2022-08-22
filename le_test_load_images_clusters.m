@@ -70,14 +70,33 @@ for iSubject = 1:nSubjects
     imshow(B2);
     title('Labeled Image a*b*', 'FontWeight', 'normal');
 
+
+
+
+
     % select cluster
+    p = zeros(nHeight, nWidth, numColors);
     for k = 1:numColors
       subplot(2, 4, 3 - 1 + k); 
       mask = pixel_labels == k;
-      % cluster = he .* uint8(mask);
-      cluster = uint8(mask);
-      imshow(cluster);
+      p(:, :, k) = mask;
+      imshow(mask);
     end
+
+    % overlap
+
+    % step 1: separate feet from background
+    % idntify ulcer
+
+    y = zeros(numColors, numColors);
+    for i = 1:numColors
+      for j = 1:numColors
+        y(i, j) = sum(p(:, :, i) == p(:, :, j)) / sum(p(:, :, i) | p(:, :, j));
+      end
+    end
+
+    subplot(2, 4, 8); 
+    imagesc(y);
 
     return
 
