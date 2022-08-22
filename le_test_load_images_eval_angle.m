@@ -4,14 +4,12 @@
 %   * https://uk.mathworks.com/discovery/image-segmentation.html
 %   * https://uk.mathworks.com/help/vision/ug/segment-3d-brain-tumor-using-deep-learning.html
 %-------------------------------------------------------------------------------
-function le_test_load_images_auto()
+function le_test_load_images_eval_angle()
 
 clc;
 
 % segmentatyion parameters
 threshold = 0.08;
-
-eccentricity = 0.85;
 
 % get path
 aPath = support_get_path();
@@ -151,24 +149,21 @@ for iSubject = 1:nSubjects
     % [~, iy] = max(py);
     % [~, ix] = max(px);
 
-    % fitting elipse
-    x1 = pyg_min;
-    x2 = pyg_max;
-    y1 = pxg_min;
-    y2 = pxg_max;
+    % evaluate angle 
+    ECC = 180;
+    pOvls = zeros(1, ECC);
+    pPhis = zeros(1, ECC);
+    for ecc = 1:ECC
 
-    % eccentricity
-    bEccentricity = 1;
-    if bEccentricity == 1
-      a = (1/2) * sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
-      b = a * sqrt(1 - eccentricity ^ 2);
-      t = linspace(0, 2 * pi, 1000); 
-      angles = atan2(y2 - y1, x2 - x1);
-      x = (x1 + x2) / 2 + a * cos(t) * cos(angles) - b * sin(t) * sin(angles);
-      y = (y1 + y2) / 2 + a * cos(t) * sin(angles) + b * sin(t) * cos(angles);
-    else
+      phi = ecc ;
+      pPhis(ecc) = phi;
 
-      phi = 40;
+      % fitting elipse
+      x1 = pyg_min;
+      x2 = pyg_max;
+      y1 = pxg_min;
+      y2 = pxg_max;
+
       rx = (x2 - x1) / 2;
       ry = (y2 - y1) / 2;
  
@@ -177,7 +172,66 @@ for iSubject = 1:nSubjects
       x = (x1 + x2) / 2 + rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
       y = (y1 + y2) / 2 + rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
 
+      % hide now
+      %%%% plot(x, y, 'Color', 'r', 'LineWidth', 2);
+
+      % make image circle
+      CI = zeros(nHeight, nWidth);
+  
+      gx = round(x);
+      gy = round(y);
+  
+      for i = 1:length(t)
+        CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
+      end
+  
+      gy_min = min(gy);
+      gy_max = max(gy);
+      for i = gy_min:gy_max
+        K = find(CI(i, :) > 0);
+        if ~isempty(K)
+          CI(i, K(1):K(end)) = 1;
+        end
+      end
+
+      % hide now
+      % subplot(2, 4, 7); 
+      % imshow(CI); hold on;
+      % plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
+      % plot(pxg, 1:length(pxg), 'Color', 'g', 'LineWidth', 0.5);
+
+      % overlap
+      g_and = BI & CI;
+      g_or = BI | CI;
+      ovl = sum(g_and(:)) / sum(g_or(:));
+      pOvls(ecc) = ovl;
     end
+
+    % get optimal eccentricity
+    [~, j] = max(pOvls);
+    phi = pPhis(j);
+
+    % plot
+    subplot(2, 4, 8); 
+    plot(pPhis, pOvls, 'k.'); box off;
+    title(sprintf('angle = %1.2f', phi), 'FontWeight', 'normal');
+
+    % fitting elipse
+    x1 = pyg_min;
+    x2 = pyg_max;
+    y1 = pxg_min;
+    y2 = pxg_max;
+
+    rx = (x2 - x1) / 2;
+    ry = (y2 - y1) / 2;
+
+    t = linspace(0, 2 * pi, 1000); 
+    phi_rad = (phi / 180) * pi;
+    x = (x1 + x2) / 2 + rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
+    y = (y1 + y2) / 2 + rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
+
+    % plot
+    subplot(2, 4, 6); 
     plot(x, y, 'Color', 'r', 'LineWidth', 2);
 
     % make image circle
@@ -194,20 +248,16 @@ for iSubject = 1:nSubjects
     gy_max = max(gy);
     for i = gy_min:gy_max
       K = find(CI(i, :) > 0);
-      CI(i, K(1):K(end)) = 1;
+      if ~isempty(K)
+        CI(i, K(1):K(end)) = 1;
+      end
     end
 
-    subplot(2, 4, 8); 
+    % plot
+    subplot(2, 4, 7); 
     imshow(CI); hold on;
     plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
     plot(pxg, 1:length(pxg), 'Color', 'g', 'LineWidth', 0.5);
-
-    % overlap
-    g_and = BI & CI;
-    g_or = BI | CI;
-    ovl = sum(g_and(:)) / sum(g_or(:));
-
-    title(sprintf('%1.4f', ovl), 'FontWeight', 'normal');
 
     % plot | overlay ellipse and original image
     subplot(2, 4, 1); hold on;
