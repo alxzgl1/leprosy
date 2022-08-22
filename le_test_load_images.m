@@ -8,6 +8,7 @@ function le_test_load_images()
 
 clc;
 
+% segmentatyion parameters
 threshold = 0.08;
 
 eccentricity = 0.85;
@@ -42,9 +43,12 @@ for iSubject = 1:nSubjects
     nWidth = size(I, 2);
     nHeight = size(I, 1);
 
+    % plot
     subplot(2, 4, 1); 
     imshow(I);
+    title('Original image', 'FontWeight', 'normal');
 
+    % convert RGB to CIE 1976 L*a*b
     he = I;
     lab_he = rgb2lab(he);
 
@@ -55,52 +59,49 @@ for iSubject = 1:nSubjects
 
     ab = lab_he(:, :, 2:3);
     ab = im2single(ab);
+
+    % K-means clustering based image segmentation
     pixel_labels = imsegkmeans(ab, numColors, "NumAttempts", 3);
 
     B2 = labeloverlay(he, pixel_labels);
+
+    % plot
     subplot(2, 4, 2); 
     imshow(B2);
-    title("Labeled Image a*b*");
+    title('Labeled Image a*b*', 'FontWeight', 'normal');
 
-
+    % select cluster
     mask4 = pixel_labels == 4;
-    cluster1 = he .* uint8(mask4);
+    cluster = he .* uint8(mask4);
+
+    % plot
     subplot(2, 4, 3); 
-    imshow(cluster1)
-    title("Objects in Cluster 1");
+    imshow(cluster)
+    title('Selected cluster (k-means)', 'FontWeight', 'normal');
 
-%     L = lab_he(:, :, 1);
-%     L_blue = L .* double(mask4);
-%     L_blue = rescale(L_blue);
-%     idx_light_blue = imbinarize(nonzeros(L_blue));
-% 
-%     blue_idx = find(mask4);
-%     mask_dark_blue = mask4;
-%     mask_dark_blue(blue_idx(idx_light_blue)) = 0;
-%     
-%     blue_nuclei = he .* uint8(mask_dark_blue);
-%     subplot(2, 4, 5); 
-%     imshow(blue_nuclei)
-
-
-    x = rgb2gray(cluster1);
+    % median filtering
+    x = rgb2gray(cluster);
     x = medfilt2(x, [32, 32]);
 
+    % plot
     subplot(2, 4, 4); 
     imshow(x);
+    title('Median filter images', 'FontWeight', 'normal');
 
+    % deliniate cluster
     x = double(x > 0);
     BI = x;
 
+    % plot
     subplot(2, 4, 5); 
     imshow(x); hold on;
     py = sum(x, 1) + size(x, 1) / 2;
     px = sum(x, 2) + size(x, 2) / 2;
-
     plot(py, 'Color', 'y', 'LineWidth', 0.5);
     plot(px, 1:size(x, 1), 'Color', 'g', 'LineWidth', 0.5);
+    title('Cluster borders', 'FontWeight', 'normal');
 
-
+    % get 
     subplot(2, 4, 6); 
     imshow(x); hold on;
 
@@ -121,9 +122,7 @@ for iSubject = 1:nSubjects
     % [~, iy] = max(py);
     % [~, ix] = max(px);
 
-    
-
-    % Make equations:
+    % fitting elipse
     x1 = pyg_min;
     x2 = pyg_max;
     y1 = pxg_min;
@@ -132,7 +131,7 @@ for iSubject = 1:nSubjects
     a = (1/2) * sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
     b = a * sqrt(1 - eccentricity ^ 2);
     t = linspace(0, 2 * pi, 1000); 
-    % Compute angles relative to (x1, y1).
+    % compute angles relative to (x1, y1)
     angles = atan2(y2 - y1, x2 - x1);
     x = (x1 + x2) / 2 + a * cos(t) * cos(angles) - b * sin(t) * sin(angles);
     y = (y1 + y2) / 2 + a * cos(t) * sin(angles) + b * sin(t) * cos(angles);
@@ -168,43 +167,12 @@ for iSubject = 1:nSubjects
 
     title(sprintf('%1.4f', ovl), 'FontWeight', 'normal');
 
-
-  subplot(2, 4, 1); hold on;
-  plot(x, y, 'Color', 'r', 'LineWidth', 3);
-
-
-
-    % gaussian fit
-%     x = double(mean(blue_nuclei, 3));
-%     GMModel = fitgmdist(x, 2);
-
-
-    % grayscale
-%     I = rgb2gray(I);
-
-%     subplot(2, 2, 2); 
-%     imshow(I);
-
-    % I = imbinarize(I); 
-    
-    % active contour
-    % mask = zeros(size(I));
-    % mask(25:end-25, 25:end-25) = 1;
-    % I = activecontour(I, mask);
-    
-    % multi threshold
-%     level = multithresh(I);
-%     seg_I = imquantize(I, level);
-%     subplot(2, 2, 3); 
-%     imshow(seg_I, []);
-
-    % image
-%     subplot(2, 2, 2); imshow(I(:, :, 1));
-%     subplot(2, 2, 3); imshow(I(:, :, 2));
-%     subplot(2, 2, 4); imshow(I(:, :, 3));
+    % plot | overlay ellipse and original image
+    subplot(2, 4, 1); hold on;
+    plot(x, y, 'Color', 'r', 'LineWidth', 3);
 
     return
-    o = 0;
+
   end
 
 end
