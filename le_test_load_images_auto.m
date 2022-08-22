@@ -157,14 +157,27 @@ for iSubject = 1:nSubjects
     y1 = pxg_min;
     y2 = pxg_max;
 
-    a = (1/2) * sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
-    b = a * sqrt(1 - eccentricity ^ 2);
-    t = linspace(0, 2 * pi, 1000); 
-    % compute angles relative to (x1, y1)
-    angles = atan2(y2 - y1, x2 - x1);
-    x = (x1 + x2) / 2 + a * cos(t) * cos(angles) - b * sin(t) * sin(angles);
-    y = (y1 + y2) / 2 + a * cos(t) * sin(angles) + b * sin(t) * cos(angles);
+    % eccentricity
+    bEccentricity = 0;
+    if bEccentricity == 1
+      a = (1/2) * sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
+      b = a * sqrt(1 - eccentricity ^ 2);
+      t = linspace(0, 2 * pi, 1000); 
+      angles = atan2(y2 - y1, x2 - x1);
+      x = (x1 + x2) / 2 + a * cos(t) * cos(angles) - b * sin(t) * sin(angles);
+      y = (y1 + y2) / 2 + a * cos(t) * sin(angles) + b * sin(t) * cos(angles);
+    else
 
+      phi = 40;
+      rx = (x2 - x1) / 2;
+      ry = (y2 - y1) / 2;
+ 
+      t = linspace(0, 2 * pi, 1000); 
+      phi_rad = (phi / 180) * pi;
+      x = (x1 + x2) / 2 + rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
+      y = (y1 + y2) / 2 + rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
+
+    end
     plot(x, y, 'Color', 'r', 'LineWidth', 2);
 
     % make image circle

@@ -58,8 +58,8 @@ for iSubject = 1:nSubjects
     ab = lab_he(:, :, 2:3);
     ab = im2single(ab);
 
-    % K-means clustering based image segmentation
-    pixel_labels = imsegkmeans(ab, numColors, "NumAttempts", 3);
+        % K-means clustering based image segmentation
+    pixel_labels = imsegkmeans(ab, numColors, 'NumAttempts', 3);
 
     B2 = labeloverlay(he, pixel_labels);
 
@@ -69,20 +69,49 @@ for iSubject = 1:nSubjects
     title('Labeled Image a*b*', 'FontWeight', 'normal');
 
     % select cluster
-    mask4 = pixel_labels == 4;
-    cluster = he .* uint8(mask4);
+    s_cols = zeros(1, numColors);
+    s_rows = zeros(1, numColors);
+    for k = 1:numColors
+      mask = pixel_labels == k;
+      % quantify clusters
+      cols = sum(mask, 1);
+      rows = sum(mask, 2)';
+      % threshold
+      th_cols = 0.05 * max(cols) * ones(1, nWidth);
+      th_rows = 0.05 * max(rows) * ones(1, nHeight);
+      % above threshold
+      s_cols(k) = mean(cols > th_cols);
+      s_rows(k) = mean(rows > th_rows);
+      % plot
+      bPlot = 0; 
+      if bPlot == 1 
+        subplot(4, 4, 3 - 1 + k); 
+        plot(cols); hold on; plot(rows); 
+        plot(th_cols, 'r'); hold on; plot(th_rows, 'k');
+      end
+    end
+    s = s_cols + s_rows;
+    [~, j] = sort(s);
+
+    % init
+    ulcer = pixel_labels == j(1);
+    feet = pixel_labels == j(1) | pixel_labels == j(2) | pixel_labels == j(3);
 
     % plot
     subplot(2, 4, 3); 
-    imshow(cluster)
-    title('Selected cluster (k-means)', 'FontWeight', 'normal');
+    imshow(ulcer);
+    title('ulcer', 'FontWeight', 'normal');
+
+    subplot(2, 4, 4); 
+    imshow(feet);
+    title('feet', 'FontWeight', 'normal');
 
     % median filtering
-    x = rgb2gray(cluster);
+    x = ulcer;
     x = medfilt2(x, [32, 32]);
 
     % plot
-    subplot(2, 4, 4); 
+    subplot(2, 4, 5); 
     imshow(x);
     title('Median filter images', 'FontWeight', 'normal');
 
@@ -91,7 +120,7 @@ for iSubject = 1:nSubjects
     BI = x;
 
     % plot
-    subplot(2, 4, 5); 
+    subplot(2, 4, 6); 
     imshow(x); hold on;
     py = sum(x, 1) + size(x, 1) / 2;
     px = sum(x, 2) + size(x, 2) / 2;
@@ -100,7 +129,7 @@ for iSubject = 1:nSubjects
     title('Cluster borders', 'FontWeight', 'normal');
 
     % fitting ellipse 
-    subplot(2, 4, 6); 
+    subplot(2, 4, 7); 
     imshow(x); hold on;
 
     pys = sum(x, 1);
