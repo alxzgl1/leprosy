@@ -6,10 +6,6 @@
 %-------------------------------------------------------------------------------
 function le_test_load_images_eval()
 
-% TODO: 2022/08/22
-% 1. Automatic detection of the clusters (feet, ulcer, etc).
-% 2. Compute ratio between feet and ulcer
-
 clc;
 
 % segmentatyion parameters
