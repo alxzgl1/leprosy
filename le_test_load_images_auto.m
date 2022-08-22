@@ -4,7 +4,7 @@
 %   * https://uk.mathworks.com/discovery/image-segmentation.html
 %   * https://uk.mathworks.com/help/vision/ug/segment-3d-brain-tumor-using-deep-learning.html
 %-------------------------------------------------------------------------------
-function le_test_load_images_clusters()
+function le_test_load_images_auto()
 
 clc;
 
