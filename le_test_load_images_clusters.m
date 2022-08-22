@@ -35,7 +35,7 @@ for iSubject = 1:nSubjects
   end
   % loop files
   nFiles = length(tFiles);
-  for iFile = 1:nFiles
+  for iFile = 2:nFiles
     aFile = tFiles{iFile};
     aFilename = support_fname({aSubpath, aSubject, aFile});
     % load image
@@ -70,18 +70,44 @@ for iSubject = 1:nSubjects
     imshow(B2);
     title('Labeled Image a*b*', 'FontWeight', 'normal');
 
-
-
-
-
     % select cluster
     p = zeros(nHeight, nWidth, numColors);
+    s_cols = zeros(nWidth, numColors);
+    s_rows = zeros(nHeight, numColors);
     for k = 1:numColors
       subplot(2, 4, 3 - 1 + k); 
       mask = pixel_labels == k;
       p(:, :, k) = mask;
-      imshow(mask);
+      % plot
+      bPlot = 1; 
+      if bPlot == 1
+        % imshow(mask); 
+        cols = sum(mask, 1);
+        rows = sum(mask, 2);
+        plot(cols); hold on; plot(rows); 
+        % threshold
+        th_cols = 0.05 * max(cols) * ones(1, nWidth);
+        th_rows = 0.05 * max(rows) * ones(1, nHeight);
+
+        % above
+        s_cols(k) = mean();
+
+
+        plot(th_cols, 'r'); hold on; plot(th_rows, 'k');
+      end
     end
+
+    % assumptions
+    % (1) there is one cluster with ulcer
+    % (2) there is one cluster with feet
+    % (3) there are 3 noisy clusters
+
+    % label clusters | ulcer = 1, feet_full = 2, feet_part = 3, noise = 4  
+    pSumCols = squeeze(sum(p, 1));
+    pSumRows = squeeze(sum(p, 2));
+    pClusterID = zeros(1, numColors);
+    
+    
 
     % overlap
 
@@ -91,7 +117,7 @@ for iSubject = 1:nSubjects
     y = zeros(numColors, numColors);
     for i = 1:numColors
       for j = 1:numColors
-        y(i, j) = sum(p(:, :, i) == p(:, :, j)) / sum(p(:, :, i) | p(:, :, j));
+        y(i, j) = sum(sum(p(:, :, i) == p(:, :, j)));
       end
     end
 
