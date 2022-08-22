@@ -8,51 +8,49 @@ function test_ellipse()
 
 clc;
 
-nWidth = 100;
-nHeight = 100; 
-I = zeros(nHeight, nWidth);
+nWidth = 800;
+nHeight = 600; 
 
-% nCenter = [ix, iy];
-% nRadius = [rx, ry];
+% ellipse
+phi = 135;
+rx = 200;
+ry = 100;
+t = 0:0.001:2*pi;
+phi_rad = (phi / 180) * pi;
+x = rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
+y = rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
 
-eccentricity = 1;
-% 
-% x1 = 1;
-% x2 = 10;
-% y1 = 1;
-% y2 = 10;
-% 
-% 
-% 
-%     a = (1/2) * sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
-%     b = a * sqrt(1 - eccentricity ^ 2);
-%     t = linspace(0, 2 * pi, 100); % Absolute angle parameter
-%     X = a * cos(t);
-%     Y = b * sin(t);
-%     % Compute angles relative to (x1, y1).
-%     angles = atan2(y2 - y1, x2 - x1);
-%     x = (x1 + x2) / 2 + X * cos(angles) - Y * sin(angles);
-%     y = (y1 + y2) / 2 + X * sin(angles) + Y * cos(angles);
-% 
-%     plot(x, y, '.');
+% plot
+subplot(2, 2, 1);
+plot(x, y, '.'); box off;
+axis square;
+xlim([-max(rx, ry), max(rx, ry)]); 
+ylim([-max(rx, ry), max(rx, ry)]);
 
-% OLD
-bOLD = 1;
-if bOLD == 1
-  phi = -45; 
-  rx = 1;
-  ry = 2;
-  t = 0:0.1:2*pi;
-  phi_rad = (phi / 180) * pi;
-  x = rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
-  y = rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
-  plot(x, y, '.');
+% make image circle
+CI = zeros(nHeight, nWidth);
+
+gx = round(x + nWidth / 2);
+gy = round(y + nHeight / 2);
+
+for i = 1:length(t)
+  CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
 end
 
+gy_min = min(gy);
+gy_max = max(gy);
+for i = gy_min:gy_max
+  K = find(CI(i, :) > 0);
+  if ~isempty(K)
+    CI(i, K(1):K(end)) = 1;
+  end
+end
 
-% for i = 
-plot(x, y, 'Color', 'r', 'LineWidth', 3);
-
+% plot
+subplot(2, 2, 2);
+imagesc(CI); 
+axis square;
+set(gca, 'YDir', 'normal');
 
 end % end
 
