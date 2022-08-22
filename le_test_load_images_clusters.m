@@ -35,7 +35,7 @@ for iSubject = 1:nSubjects
   end
   % loop files
   nFiles = length(tFiles);
-  for iFile = 2:nFiles
+  for iFile = 1:nFiles
     aFile = tFiles{iFile};
     aFilename = support_fname({aSubpath, aSubject, aFile});
     % load image
@@ -71,71 +71,49 @@ for iSubject = 1:nSubjects
     title('Labeled Image a*b*', 'FontWeight', 'normal');
 
     % select cluster
-    p = zeros(nHeight, nWidth, numColors);
-    s_cols = zeros(nWidth, numColors);
-    s_rows = zeros(nHeight, numColors);
+    s_cols = zeros(1, numColors);
+    s_rows = zeros(1, numColors);
     for k = 1:numColors
-      subplot(2, 4, 3 - 1 + k); 
       mask = pixel_labels == k;
-      p(:, :, k) = mask;
+      % quantify clusters
+      cols = sum(mask, 1);
+      rows = sum(mask, 2)';
+      % threshold
+      th_cols = 0.05 * max(cols) * ones(1, nWidth);
+      th_rows = 0.05 * max(rows) * ones(1, nHeight);
+      % above threshold
+      s_cols(k) = mean(cols > th_cols);
+      s_rows(k) = mean(rows > th_rows);
       % plot
-      bPlot = 1; 
-      if bPlot == 1
-        % imshow(mask); 
-        cols = sum(mask, 1);
-        rows = sum(mask, 2);
+      bPlot = 0; 
+      if bPlot == 1 
+        subplot(4, 4, 3 - 1 + k); 
         plot(cols); hold on; plot(rows); 
-        % threshold
-        th_cols = 0.05 * max(cols) * ones(1, nWidth);
-        th_rows = 0.05 * max(rows) * ones(1, nHeight);
-
-        % above
-        s_cols(k) = mean();
-
-
         plot(th_cols, 'r'); hold on; plot(th_rows, 'k');
       end
     end
+    s = s_cols + s_rows;
+    [~, j] = sort(s);
 
-    % assumptions
-    % (1) there is one cluster with ulcer
-    % (2) there is one cluster with feet
-    % (3) there are 3 noisy clusters
-
-    % label clusters | ulcer = 1, feet_full = 2, feet_part = 3, noise = 4  
-    pSumCols = squeeze(sum(p, 1));
-    pSumRows = squeeze(sum(p, 2));
-    pClusterID = zeros(1, numColors);
-    
-    
-
-    % overlap
-
-    % step 1: separate feet from background
-    % idntify ulcer
-
-    y = zeros(numColors, numColors);
-    for i = 1:numColors
-      for j = 1:numColors
-        y(i, j) = sum(sum(p(:, :, i) == p(:, :, j)));
-      end
-    end
-
-    subplot(2, 4, 8); 
-    imagesc(y);
-
-    return
+    % init
+    ulcer = pixel_labels == j(1);
+    feet = pixel_labels == j(1) | pixel_labels == j(2) | pixel_labels == j(3);
 
     % plot
     subplot(2, 4, 3); 
-    title('Selected cluster (k-means)', 'FontWeight', 'normal');
+    imshow(ulcer);
+    title('ulcer', 'FontWeight', 'normal');
+
+    subplot(2, 4, 4); 
+    imshow(feet);
+    title('feet', 'FontWeight', 'normal');
 
     % median filtering
-    x = rgb2gray(cluster);
+    x = ulcer;
     x = medfilt2(x, [32, 32]);
 
     % plot
-    subplot(2, 4, 4); 
+    subplot(2, 4, 5); 
     imshow(x);
     title('Median filter images', 'FontWeight', 'normal');
 
@@ -144,7 +122,7 @@ for iSubject = 1:nSubjects
     BI = x;
 
     % plot
-    subplot(2, 4, 5); 
+    subplot(2, 4, 6); 
     imshow(x); hold on;
     py = sum(x, 1) + size(x, 1) / 2;
     px = sum(x, 2) + size(x, 2) / 2;
@@ -153,7 +131,7 @@ for iSubject = 1:nSubjects
     title('Cluster borders', 'FontWeight', 'normal');
 
     % fitting ellipse 
-    subplot(2, 4, 6); 
+    subplot(2, 4, 7); 
     imshow(x); hold on;
 
     pys = sum(x, 1);
@@ -206,7 +184,7 @@ for iSubject = 1:nSubjects
       CI(i, K(1):K(end)) = 1;
     end
 
-    subplot(2, 4, 7); 
+    subplot(2, 4, 8); 
     imshow(CI); hold on;
     plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
     plot(pxg, 1:length(pxg), 'Color', 'g', 'LineWidth', 0.5);
