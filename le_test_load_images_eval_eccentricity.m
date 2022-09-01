@@ -96,11 +96,12 @@ for iSubject = 1:nSubjects
     % init
     ulcer = pixel_labels == j(1);
     feet = pixel_labels == j(1) | pixel_labels == j(2) | pixel_labels == j(3);
+    ratio = sum(ulcer) / sum(feet);
 
     % plot
     subplot(2, 4, 3); 
     imshow(ulcer);
-    title('ulcer', 'FontWeight', 'normal');
+    title(sprintf('ulcer (%1.1f%%)', 100 * ratio), 'FontWeight', 'normal');
 
     subplot(2, 4, 4); 
     imshow(feet);
@@ -129,25 +130,15 @@ for iSubject = 1:nSubjects
     title('Cluster borders', 'FontWeight', 'normal');
 
     % fitting ellipse 
-    subplot(2, 4, 7); 
-    imshow(x); hold on;
-
-    pys = sum(x, 1);
+    pys = sum(x, 1); % x is image of ulcer
     pxs = sum(x, 2);
     pyg = double(pys > threshold * max(pys)) * size(x, 1);
     pxg = double(pxs > threshold * max(pxs)) * size(x, 2);
 
     pyg_min = find(pyg > 0, 1, 'first');
     pyg_max = find(pyg > 0, 1, 'last');
-
     pxg_min = find(pxg > 0, 1, 'first');
     pxg_max = find(pxg > 0, 1, 'last');
-
-    plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
-    plot(pxg, 1:size(x, 1), 'Color', 'g', 'LineWidth', 0.5);
-
-    % [~, iy] = max(py);
-    % [~, ix] = max(px);
 
     % evaluate eccentricity 
     ECC = 99;
@@ -172,19 +163,13 @@ for iSubject = 1:nSubjects
       x = (x1 + x2) / 2 + a * cos(t) * cos(angles) - b * sin(t) * sin(angles);
       y = (y1 + y2) / 2 + a * cos(t) * sin(angles) + b * sin(t) * cos(angles);
 
-      % hide now
-      %%%% plot(x, y, 'Color', 'r', 'LineWidth', 2);
-
       % make image circle
       CI = zeros(nHeight, nWidth);
-  
       gx = round(x);
       gy = round(y);
-  
       for i = 1:length(t)
         CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
       end
-  
       gy_min = min(gy);
       gy_max = max(gy);
       for i = gy_min:gy_max
@@ -194,12 +179,6 @@ for iSubject = 1:nSubjects
         end
       end
 
-      % hide now
-      % subplot(2, 4, 7); 
-      % imshow(CI); hold on;
-      % plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
-      % plot(pxg, 1:length(pxg), 'Color', 'g', 'LineWidth', 0.5);
-
       % overlap
       g_and = BI & CI;
       g_or = BI | CI;
@@ -208,13 +187,15 @@ for iSubject = 1:nSubjects
     end
 
     % get optimal eccentricity
-    [~, j] = max(pOvls);
+    [nOvlMax, j] = max(pOvls);
     eccentricity = pEccs(j);
 
     % plot
     subplot(2, 4, 8); 
-    plot(pEccs, pOvls, 'k.'); box off;
-    title(sprintf('eccentricity = %1.2f', eccentricity), 'FontWeight', 'normal');
+    plot(pEccs, pOvls, 'k.'); hold on;
+    plot(pEccs(j), pOvls(j), 'LineWidth', 2, 'Color', 'r', 'Marker', 'o'); box off;
+    xlabel('eccentricity'); ylabel('overlap');
+    title(sprintf('ecc = %1.2f, ovl = %1.2f', eccentricity, nOvlMax), 'FontWeight', 'normal');
 
     % fitting elipse
     x1 = pyg_min;
@@ -236,14 +217,11 @@ for iSubject = 1:nSubjects
 
     % make image circle
     CI = zeros(nHeight, nWidth);
-
     gx = round(x);
     gy = round(y);
-
     for i = 1:length(t)
       CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
     end
-
     gy_min = min(gy);
     gy_max = max(gy);
     for i = gy_min:gy_max
@@ -258,6 +236,7 @@ for iSubject = 1:nSubjects
     imshow(CI); hold on;
     plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
     plot(pxg, 1:length(pxg), 'Color', 'g', 'LineWidth', 0.5);
+    title(sprintf('ovl = %1.2f%%', nOvlMax), 'FontWeight', 'normal');
 
     % plot | overlay ellipse and original image
     subplot(2, 4, 1); hold on;
