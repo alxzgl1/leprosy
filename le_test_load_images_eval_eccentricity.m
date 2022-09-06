@@ -58,8 +58,8 @@ for iSubject = 1:nSubjects
     ab = lab_he(:, :, 2:3);
     ab = im2single(ab);
 
-        % K-means clustering based image segmentation
-    pixel_labels = imsegkmeans(ab, numColors, 'NumAttempts', 3);
+    % K-means clustering based image segmentation
+    pixel_labels = imsegkmeans(ab, numColors, 'NumAttempts', 3, 'NormalizeInput', true);
 
     B2 = labeloverlay(he, pixel_labels);
 
