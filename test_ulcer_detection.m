@@ -5,9 +5,6 @@ function test_ulcer_detection()
 
 clc;
 
-% segmentatyion parameters
-threshold = 0.08;
-
 % get path
 aPath = support_get_path();
 aSubpath = support_fname({aPath, 'leprosy', 'TABLE_Aranz_Image'});
@@ -66,6 +63,26 @@ for iSubject = 1:nSubjects
       
       subplot(2, 2, 2);
       imshow(outputImage, 'InitialMagnification', 67);
+
+      % max
+      xR = outputImage(:, :, 1);
+
+      G = 2 * outputImage(:, :, 1) - outputImage(:, :, 2) - outputImage(:, :, 3);
+
+      [~, iMax] = max(G(:));
+      x = zeros(size(xR(:)));
+      x(iMax) = 128;
+      y = reshape(x, size(xR, 1), size(xR, 2));
+      [iRow, iCol] = find(y == 128);
+      outputImage(iRow-10:iRow+10, iCol-10:iCol+10, :) = 255;
+      
+      subplot(2, 2, 2);
+      imshow(outputImage, 'InitialMagnification', 67); 
+
+      subplot(2, 2, 3);
+      imshow(G, 'InitialMagnification', 67); 
+
+      return
 
       % histogram
       subplot(2, 2, 3);
