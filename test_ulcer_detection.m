@@ -43,7 +43,7 @@ for iSubject = 1:nSubjects
     if bSuperPixel == 1
       [L, N] = superpixels(I, 500);
       BW = boundarymask(L);
-      subplot(2, 2, 1);
+      subplot(2, 3, 1);
       imshow(imoverlay(I, BW, 'cyan'), 'InitialMagnification', 67);
 
       % https://uk.mathworks.com/help/images/ref/superpixels.html
@@ -61,26 +61,34 @@ for iSubject = 1:nSubjects
         outputImage(blueIdx) = mean(I(blueIdx));
       end    
       
-      subplot(2, 2, 2);
+      subplot(2, 3, 2);
       imshow(outputImage, 'InitialMagnification', 67);
 
       % max
       xR = outputImage(:, :, 1);
 
-      G = 2 * outputImage(:, :, 1) - outputImage(:, :, 2) - outputImage(:, :, 3);
+      G = outputImage(:, :, 1) - outputImage(:, :, 2) - outputImage(:, :, 3);
 
-      [~, iMax] = max(G(:));
-      x = zeros(size(xR(:)));
-      x(iMax) = 128;
-      y = reshape(x, size(xR, 1), size(xR, 2));
-      [iRow, iCol] = find(y == 128);
-      outputImage(iRow-10:iRow+10, iCol-10:iCol+10, :) = 255;
+      Q = double(G);
+
+% % % % %       [~, iMax] = max(G(:));
+% % % % %       x = zeros(size(xR(:)));
+% % % % %       x(iMax) = 128;
+% % % % %       y = reshape(x, size(xR, 1), size(xR, 2));
+% % % % %       [iRow, iCol] = find(y == 128);
+% % % % %       outputImage(iRow-10:iRow+10, iCol-10:iCol+10, :) = 255;
+
+      B = uint8(Q ~= 0);
+      outputImage = outputImage .* repmat(B, 1, 1, 3);
       
-      subplot(2, 2, 2);
+      subplot(2, 3, 5);
       imshow(outputImage, 'InitialMagnification', 67); 
 
-      subplot(2, 2, 3);
+      subplot(2, 3, 3);
       imshow(G, 'InitialMagnification', 67); 
+
+      subplot(2, 3, 4);
+      imshow(Q, 'InitialMagnification', 67); 
 
       return
 
