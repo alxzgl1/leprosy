@@ -46,6 +46,13 @@ for iSubject = 1:nSubjects
     imshow(I);
     title('Original image', 'FontWeight', 'normal');
 
+    % colour difference
+    % bColourDifference = 1;
+    % if bColourDifference == 1
+    %   J = I(:, :, 1) - I(:, :, 2) - I(:, :, 3);
+    %   I = repmat(J, 1, 1, 3);
+    % end
+
     % convert RGB to CIE 1976 L*a*b
     he = I;
     lab_he = rgb2lab(he);
@@ -266,7 +273,6 @@ for iSubject = 1:nSubjects
     return
 
   end
-
 end
 
 
