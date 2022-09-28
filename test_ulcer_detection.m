@@ -5,6 +5,12 @@ function test_ulcer_detection()
 
 clc;
 
+% parameters
+bCutImage = 1;
+nImageHalfWidth = 350; % in pixels
+
+nSuperPixelClusters = 50; % 500 (uncut image)
+
 % get path
 aPath = support_get_path();
 aSubpath = support_fname({aPath, 'leprosy', 'TABLE_Aranz_Image'});
@@ -37,11 +43,20 @@ for iSubject = 1:nSubjects
     I = imread(aFilename);
     nWidth = size(I, 2);
     nHeight = size(I, 1);
+		
+		% cut image
+		if bCutImage == 1
+      d = nImageHalfWidth;
+			x = nWidth / 2;
+			y = nHeight / 2;
+			I = I(:, :, :); 
+			I = I((y - d):(y + d), (x - d):(x + d), :);
+		end
 
     % superpixel
     bSuperPixel = 1;
     if bSuperPixel == 1
-      [L, N] = superpixels(I, 500);
+      [L, N] = superpixels(I, nSuperPixelClusters);
       BW = boundarymask(L);
       subplot(2, 3, 1);
       imshow(imoverlay(I, BW, 'cyan'), 'InitialMagnification', 67);
@@ -64,19 +79,22 @@ for iSubject = 1:nSubjects
       subplot(2, 3, 2);
       imshow(outputImage, 'InitialMagnification', 67);
 
-      % max
-      xR = outputImage(:, :, 1);
-
+      % subtract "red - green - blue"
       G = outputImage(:, :, 1) - outputImage(:, :, 2) - outputImage(:, :, 3);
-
       Q = double(G);
 
-% % % % %       [~, iMax] = max(G(:));
-% % % % %       x = zeros(size(xR(:)));
-% % % % %       x(iMax) = 128;
-% % % % %       y = reshape(x, size(xR, 1), size(xR, 2));
-% % % % %       [iRow, iCol] = find(y == 128);
-% % % % %       outputImage(iRow-10:iRow+10, iCol-10:iCol+10, :) = 255;
+      % get maximum and spot it
+      bSpotMaximum = 0;
+      if bSpotMaximum == 1
+        [~, iMax] = max(G(:));
+        x = zeros(size(G(:)));
+        x(iMax) = 128;
+        y = reshape(x, size(G, 1), size(G, 2));
+        [iRow, iCol] = find(y == 128);
+        outputImage((iRow - 10):(iRow + 10), (iCol - 10):(iCol + 10), :) = 255;
+      end
+
+
 
       B = uint8(Q ~= 0);
       outputImage = outputImage .* repmat(B, 1, 1, 3);

@@ -40,7 +40,7 @@ for iSubject = 1:nSubjects
     nWidth = size(I, 2);
     nHeight = size(I, 1);
 
-    % focus on image center
+    % focus on image center (cut image)
     d = 250; % in pixels 
     x = nWidth / 2;
     y = nHeight / 2;
