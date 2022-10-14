@@ -8,7 +8,7 @@ function le_test_load_images_eval_eccentricity()
 
 clc;
 
-% segmentatyion parameters
+% segmentation parameters
 threshold = 0.08;
 
 % get path

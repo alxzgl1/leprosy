@@ -21,7 +21,7 @@ nSubjects = length(tSubjects);
 [fb, fa] = butter(2, 0.1, 'low');
 
 % loop subjects
-for iSubject = 5:nSubjects
+for iSubject = 1:nSubjects
   aSubject = tSubjects{iSubject};
   tFiles = [];
   a = dir(support_fname({aSubpath, aSubject}));
