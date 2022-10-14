@@ -18,10 +18,10 @@ tSubjects = support_get_subjects(aSubpath);
 nSubjects = length(tSubjects);
 
 % smoothing filter
-% [fb, fa] = butter(2, 0.05, 'low');
+% [fb, fa] = butter(2, 0.2, 'low');
 
 % loop subjects
-for iSubject = 1:nSubjects
+for iSubject = 2:nSubjects
   aSubject = tSubjects{iSubject};
   tFiles = [];
   a = dir(support_fname({aSubpath, aSubject}));
@@ -33,7 +33,8 @@ for iSubject = 1:nSubjects
     end
   end
 
-  % create mask
+  % create mask by averaging subject's images 
+  % parameters: (1) medfilt([8, 8]), (2) h = 32, (3) group MASK > 1
   nFiles = length(tFiles);
   MASK = zeros(2 * nImageHalfWidth + 1, 2 * nImageHalfWidth + 1, nFiles);
   for iFile = 1:nFiles
@@ -54,16 +55,42 @@ for iSubject = 1:nSubjects
     % median filter
     GF = 1.0 * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
     GF = medfilt2(GF, [8, 8]);
-    % threshold
-    h = 32; % CHECK this
-    Q = uint8((GF > h) * 255);
     % init
-    MASK(:, :, iFile) = double(GF > h);
+    MASK(:, :, iFile) = double(GF > 32); % arbitrary threshold of 32
   end
   MASK = sum(MASK, 3);
-  MASK = MASK > 1.0; % MASK threshold (?)
+  MASK = MASK > 1.0; % threshold group MASK
+
+  % exclude peripheral (artificial) blobs 
+  % parameters: (1) diff(S) < 5 (0 = no white pixels between blobs) 
+  bExcludePeripheralBlobs = 1;
+  if bExcludePeripheralBlobs == 1
+    bDebug = 0; 
+    if bDebug == 1, figure; subplot(2, 2, 1); imshow(MASK); end
+    pR = 5:5:nImageHalfWidth;
+    nR = length(pR);
+    S = zeros(nR, 1);
+    for i = 1:nR
+      R = pR(i);
+      s = sqrt((-nImageHalfWidth:nImageHalfWidth) .^ 2 + (-nImageHalfWidth:nImageHalfWidth)' .^ 2) < R;
+      s = MASK .* s;
+      S(i) = sum(s(:));
+    end
+    % plot(diff(S))
+    i = find(diff(S) < 5, 1, 'first'); % arbitrary threshold to separate central and peripheral (artificial) blobs 
+    % make circle mask with optimal radius
+    R = pR(i);
+    s = sqrt((-nImageHalfWidth:nImageHalfWidth) .^ 2 + (-nImageHalfWidth:nImageHalfWidth)' .^ 2) < R;
+    MASK = MASK .* s;
+    if bDebug == 1, subplot(2, 2, 2); imshow(MASK); end
+  end
+
   % fit ellipse
-  MASK = fit_ellipse(MASK);
+  bEllipseMASK = 1;
+  if bEllipseMASK == 1
+    bDebug = 0;
+    MASK = fit_ellipse(MASK, bDebug);
+  end
 
   % static MASK
   bStaticMASK = 0;
@@ -84,7 +111,7 @@ for iSubject = 1:nSubjects
     nHeight = size(I, 1);
 		
 		% cut image
-		if bCutImage == 1
+    if bCutImage == 1
       d = nImageHalfWidth;
 			x = nWidth / 2;
 			y = nHeight / 2;
@@ -96,7 +123,7 @@ for iSubject = 1:nSubjects
     % G = I(:, :, 1) - I(:, :, 2) - I(:, :, 3); 
     % G = repmat(G, 1, 1, 3);
 
-    GF = 1.2 * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
+    GF = 1.15 * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
     GF = medfilt2(GF, [8, 8]);
  
     % threshold
@@ -114,20 +141,14 @@ for iSubject = 1:nSubjects
 
     hold on;
 
+    % cross hair
     plot(1:(2 * nImageHalfWidth), zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 'LineWidth', 1, 'Color', 'c');
     plot(zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 1:(2 * nImageHalfWidth), 'LineWidth', 1, 'Color', 'c');
-
     title(sprintf('Ulcer: %1.4f', nUlcerSize), 'FontWeight', 'normal');
-
-    % QI = uint8(Q > 0) .* I;
-    % subplot(2, 4, 4);
-    % imshow(QI);
-
   end
   subplot(4, 4, 13);
-  imagesc(MASK);
-
-  subplot(4, 4, [15, 16]);
+  imshow(MASK);
+  subplot(4, 4, 14);
   plot(pUlcerSize, '-*'); box off;
  
   return
@@ -139,7 +160,7 @@ end % end
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function CI = fit_ellipse(I)
+function CI = fit_ellipse(I, bDebug)
 
 threshold = 0.08;
 
@@ -210,8 +231,8 @@ end
 eccentricity = pEccs(j);
 
 % plot
-bPlotMASK = 0;
-if bPlotMASK == 1
+if bDebug == 1
+  figure; 
   subplot(2, 2, 2); 
   plot(pEccs, pOvls, 'k.'); hold on;
   plot(pEccs(j), pOvls(j), 'LineWidth', 2, 'Color', 'r', 'Marker', 'o'); box off;
@@ -250,8 +271,7 @@ for i = gy_min:gy_max
 end
 
 % plot | overlay ellipse and original image
-bPlotMASK = 0;
-if bPlotMASK == 1
+if bDebug == 1
   subplot(2, 2, 1); 
   imshow(I); hold on;
   plot(x, y, 'Color', 'r', 'LineWidth', 3);
@@ -275,8 +295,7 @@ for i = gy_min:gy_max
 end
 
 % plot
-bPlotMASK = 0;
-if bPlotMASK == 1
+if bDebug == 1
   subplot(2, 2, 3); 
   imshow(CI); hold on;
   plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
