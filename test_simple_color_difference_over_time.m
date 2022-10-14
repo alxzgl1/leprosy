@@ -9,6 +9,11 @@ clc;
 bCutImage = 1;
 nImageHalfWidth = 350; % in pixels
 
+nRedWeightMASK = 1.0; % 1.0 (default)
+nRedWeight = 1.15; % 1.15 (default)
+
+iBegSubject = 1;
+
 % get path
 aPath = support_get_path();
 aSubpath = support_fname({aPath, 'leprosy', 'TABLE_Aranz_Image'});
@@ -21,7 +26,7 @@ nSubjects = length(tSubjects);
 % [fb, fa] = butter(2, 0.2, 'low');
 
 % loop subjects
-for iSubject = 2:nSubjects
+for iSubject = iBegSubject:nSubjects
   aSubject = tSubjects{iSubject};
   tFiles = [];
   a = dir(support_fname({aSubpath, aSubject}));
@@ -53,7 +58,7 @@ for iSubject = 2:nSubjects
 			I = I((y - d):(y + d), (x - d):(x + d), :);
     end
     % median filter
-    GF = 1.0 * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
+    GF = nRedWeightMASK * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
     GF = medfilt2(GF, [8, 8]);
     % init
     MASK(:, :, iFile) = double(GF > 32); % arbitrary threshold of 32
@@ -89,7 +94,12 @@ for iSubject = 2:nSubjects
   bEllipseMASK = 1;
   if bEllipseMASK == 1
     bDebug = 0;
-    MASK = fit_ellipse(MASK, bDebug);
+    bAngleFitting = 1;
+    if bAngleFitting == 1
+      MASK = fit_ellipse_angle(MASK, bDebug);
+    else
+      MASK = fit_ellipse_eccentricity(MASK, bDebug);
+    end
   end
 
   % static MASK
@@ -102,7 +112,7 @@ for iSubject = 2:nSubjects
   % loop files
   nFiles = length(tFiles);
   pUlcerSize = zeros(nFiles, 1);
-  for iFile = 1:12 % 1:nFiles
+  for iFile = 1:nFiles
     aFile = tFiles{iFile};
     aFilename = support_fname({aSubpath, aSubject, aFile});
     % load image
@@ -123,7 +133,7 @@ for iSubject = 2:nSubjects
     % G = I(:, :, 1) - I(:, :, 2) - I(:, :, 3); 
     % G = repmat(G, 1, 1, 3);
 
-    GF = 1.15 * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
+    GF = nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
     GF = medfilt2(GF, [8, 8]);
  
     % threshold
@@ -136,19 +146,30 @@ for iSubject = 2:nSubjects
     nUlcerSize = sum(Q_MASK(:) > 0) / length(Q_MASK(:));
     pUlcerSize(iFile) = nUlcerSize;
 
-    subplot(4, 4, iFile);
-    imshow(Q_MASK); % Q, I
+    subplot(4, 8, (iFile - 1) * 2 + 1);
+    imshow(I); 
+
+    subplot(4, 8, (iFile - 1) * 2 + 2);
+    imshow(Q_MASK); 
 
     hold on;
 
     % cross hair
-    plot(1:(2 * nImageHalfWidth), zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 'LineWidth', 1, 'Color', 'c');
-    plot(zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 1:(2 * nImageHalfWidth), 'LineWidth', 1, 'Color', 'c');
-    title(sprintf('Ulcer: %1.4f', nUlcerSize), 'FontWeight', 'normal');
+    bCrossHair = 0;
+    if bCrossHair == 1
+      plot(1:(2 * nImageHalfWidth), zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 'LineWidth', 1, 'Color', 'c');
+      plot(zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 1:(2 * nImageHalfWidth), 'LineWidth', 1, 'Color', 'c');
+      title(sprintf('Ulcer: %1.4f', nUlcerSize), 'FontWeight', 'normal');
+    end
+
+    % break
+    if iFile > 14
+      break
+    end
   end
-  subplot(4, 4, 13);
+  subplot(4, 8, 31);
   imshow(MASK);
-  subplot(4, 4, 14);
+  subplot(4, 8, 32);
   plot(pUlcerSize, '-*'); box off;
  
   return
@@ -160,9 +181,7 @@ end % end
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function CI = fit_ellipse(I, bDebug)
-
-threshold = 0.08;
+function CI = fit_ellipse_eccentricity(I, bDebug)
 
 % init
 [nHeight, nWidth] = size(I);
@@ -172,8 +191,15 @@ x = I;
 % fitting ellipse 
 pys = sum(x, 1); % x is image of ulcer
 pxs = sum(x, 2);
-pyg = double(pys > threshold * max(pys)) * size(x, 1);
-pxg = double(pxs > threshold * max(pxs)) * size(x, 2);
+
+% version 1.0
+% threshold = 0.08; 
+% pyg = double(pys > threshold * max(pys)) * size(x, 1);
+% pxg = double(pxs > threshold * max(pxs)) * size(x, 2);
+
+% version 1.1 | threshold 1.0
+pyg = zeros(size(pys)); [~, i] = max(pys); jR = find(pys(i:end) < 1.0, 1, 'first'); jL = find(pys(i:-1:1) < 1.0, 1, 'first'); pyg((i - jL + 1):(i + jR - 1)) = 1;
+pxg = zeros(size(pxs)); [~, i] = max(pxs); jR = find(pxs(i:end) < 1.0, 1, 'first'); jL = find(pxs(i:-1:1) < 1.0, 1, 'first'); pxg((i - jL + 1):(i + jR - 1)) = 1;
 
 pyg_min = find(pyg > 0, 1, 'first');
 pyg_max = find(pyg > 0, 1, 'last');
@@ -253,6 +279,159 @@ t = linspace(0, 2 * pi, 1000);
 angles = atan2(y2 - y1, x2 - x1);
 x = (x1 + x2) / 2 + a * cos(t) * cos(angles) - b * sin(t) * sin(angles);
 y = (y1 + y2) / 2 + a * cos(t) * sin(angles) + b * sin(t) * cos(angles);
+
+% make image circle
+CI = zeros(nHeight, nWidth);
+gx = round(x);
+gy = round(y);
+for i = 1:length(t)
+  CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
+end
+gy_min = min(gy);
+gy_max = max(gy);
+for i = gy_min:gy_max
+  K = find(CI(i, :) > 0);
+  if ~isempty(K)
+    CI(i, K(1):K(end)) = 1;
+  end
+end
+
+% plot | overlay ellipse and original image
+if bDebug == 1
+  subplot(2, 2, 1); 
+  imshow(I); hold on;
+  plot(x, y, 'Color', 'r', 'LineWidth', 3);
+  title('MASK', 'FontWeight', 'normal');
+end
+
+% fitted mask
+CI = zeros(nHeight, nWidth);
+gx = round(x);
+gy = round(y);
+for i = 1:length(t)
+  CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
+end
+gy_min = min(gy);
+gy_max = max(gy);
+for i = gy_min:gy_max
+  K = find(CI(i, :) > 0);
+  if ~isempty(K)
+    CI(i, K(1):K(end)) = 1;
+  end
+end
+
+% plot
+if bDebug == 1
+  subplot(2, 2, 3); 
+  imshow(CI); hold on;
+  plot(pyg, 'Color', 'y', 'LineWidth', 0.5);
+  plot(pxg, 1:length(pxg), 'Color', 'g', 'LineWidth', 0.5);
+  title(sprintf('ovl = %1.2f%%', nOvlMax), 'FontWeight', 'normal');
+end
+
+end % end
+
+%-------------------------------------------------------------------------------
+% Function
+%-------------------------------------------------------------------------------
+function CI = fit_ellipse_angle(I, bDebug)
+
+% init
+[nHeight, nWidth] = size(I);
+BI = I;
+x = I;
+
+% fitting ellipse 
+pys = sum(x, 1); % x is image of ulcer
+pxs = sum(x, 2);
+
+% version 1.0
+% threshold = 0.08; 
+% pyg = double(pys > threshold * max(pys)) * size(x, 1);
+% pxg = double(pxs > threshold * max(pxs)) * size(x, 2);
+
+% version 1.1 | threshold 1.0
+pyg = zeros(size(pys)); [~, i] = max(pys); jR = find(pys(i:end) < 1.0, 1, 'first'); jL = find(pys(i:-1:1) < 1.0, 1, 'first'); pyg((i - jL + 1):(i + jR - 1)) = 1;
+pxg = zeros(size(pxs)); [~, i] = max(pxs); jR = find(pxs(i:end) < 1.0, 1, 'first'); jL = find(pxs(i:-1:1) < 1.0, 1, 'first'); pxg((i - jL + 1):(i + jR - 1)) = 1;
+
+pyg_min = find(pyg > 0, 1, 'first');
+pyg_max = find(pyg > 0, 1, 'last');
+pxg_min = find(pxg > 0, 1, 'first');
+pxg_max = find(pxg > 0, 1, 'last');
+
+% evaluate angle 
+ECC = 90; % 180
+pOvls = zeros(1, ECC);
+pPhis = zeros(1, ECC);
+for ecc = 1:ECC
+
+  phi = ecc ;
+  pPhis(ecc) = phi;
+
+  % fitting elipse
+  x1 = pyg_min;
+  x2 = pyg_max;
+  y1 = pxg_min;
+  y2 = pxg_max;
+
+  rx = (x2 - x1) / 2;
+  ry = (y2 - y1) / 2;
+
+  t = linspace(0, 2 * pi, 1000); 
+  phi_rad = (phi / 180) * pi;
+  x = (x1 + x2) / 2 + rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
+  y = (y1 + y2) / 2 + rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
+
+  % make image circle
+  CI = zeros(nHeight, nWidth);
+  gx = round(x);
+  gy = round(y);
+  for i = 1:length(t)
+    CI(gy(i), ((gx(i) - 1):(gx(i) + 1))) = 1;
+  end
+  gy_min = min(gy);
+  gy_max = max(gy);
+  for i = gy_min:gy_max
+    K = find(CI(i, :) > 0);
+    if ~isempty(K)
+      CI(i, K(1):K(end)) = 1;
+    end
+  end
+
+  % overlap
+  g_and = BI & CI;
+  g_or = BI | CI;
+  ovl = sum(g_and(:)) / sum(g_or(:));
+  pOvls(ecc) = ovl;
+end
+
+% get optimal eccentricity
+[nOvlMax, j] = max(pOvls);
+phi = pPhis(j);
+
+% plot
+if bDebug == 1
+  figure; 
+  subplot(2, 2, 2); 
+  plot(pPhis, pOvls, 'k.'); hold on;
+  plot(pPhis(j), pOvls(j), 'LineWidth', 2, 'Color', 'r', 'Marker', 'o'); box off;
+  xlabel('eccentricity'); ylabel('overlap');
+  title(sprintf('angle = %1.2f, ovl = %1.2f', phi, nOvlMax), 'FontWeight', 'normal');
+end
+
+% fitting elipse
+x1 = pyg_min;
+x2 = pyg_max;
+y1 = pxg_min;
+y2 = pxg_max;
+
+rx = (x2 - x1) / 2;
+ry = (y2 - y1) / 2;
+
+t = linspace(0, 2 * pi, 1000); 
+phi_rad = (phi / 180) * pi;
+x = (x1 + x2) / 2 + rx * cos(t) * cos(phi_rad) - ry * sin(t) * sin(phi_rad);
+y = (y1 + y2) / 2 + rx * cos(t) * sin(phi_rad) + ry * sin(t) * cos(phi_rad);
 
 % make image circle
 CI = zeros(nHeight, nWidth);
