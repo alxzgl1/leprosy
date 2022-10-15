@@ -9,7 +9,6 @@ clc;
 bCutImage = 1;
 nImageHalfWidth = 350; % in pixels
 
-nRedWeightMASK = 1.0; % 1.0 (default)
 nRedWeight = 1.15; % 1.15 (default)
 
 iBegSubject = 1;
@@ -58,7 +57,7 @@ for iSubject = iBegSubject:nSubjects
 			I = I((y - d):(y + d), (x - d):(x + d), :);
     end
     % median filter
-    GF = nRedWeightMASK * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
+    GF = I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % RED_weight = 1.0
     GF = medfilt2(GF, [8, 8]);
     % init
     MASK(:, :, iFile) = double(GF > 32); % arbitrary threshold of 32
@@ -94,10 +93,10 @@ for iSubject = iBegSubject:nSubjects
   bEllipseMASK = 1;
   if bEllipseMASK == 1
     bDebug = 0;
-    bAngleFitting = 1;
-    if bAngleFitting == 1
-      MASK = fit_ellipse_angle(MASK, bDebug);
-    else
+    aFitting = 'angle'; % 'angle', 'eccentricity'
+    if strcmp(aFitting, 'angle')
+      MASK = fit_ellipse_angle(MASK, [2, 3], bDebug); % ellipse ratio [x, y] = [2, 2], [2, 3]
+    elseif strcmp(aFitting, 'eccentricity')
       MASK = fit_ellipse_eccentricity(MASK, bDebug);
     end
   end
@@ -334,7 +333,7 @@ end % end
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function CI = fit_ellipse_angle(I, bDebug)
+function CI = fit_ellipse_angle(I, xy, bDebug)
 
 % init
 [nHeight, nWidth] = size(I);
@@ -374,8 +373,8 @@ for ecc = 1:ECC
   y1 = pxg_min;
   y2 = pxg_max;
 
-  rx = (x2 - x1) / 2;
-  ry = (y2 - y1) / 2;
+  rx = (x2 - x1) / xy(1);
+  ry = (y2 - y1) / xy(2);
 
   t = linspace(0, 2 * pi, 1000); 
   phi_rad = (phi / 180) * pi;
@@ -425,8 +424,8 @@ x2 = pyg_max;
 y1 = pxg_min;
 y2 = pxg_max;
 
-rx = (x2 - x1) / 2;
-ry = (y2 - y1) / 2;
+rx = (x2 - x1) / xy(1);
+ry = (y2 - y1) / xy(2);
 
 t = linspace(0, 2 * pi, 1000); 
 phi_rad = (phi / 180) * pi;
