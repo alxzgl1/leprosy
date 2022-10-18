@@ -14,7 +14,6 @@ nRedWeight = 1.15; % 1.15 (default) | stable parameter
 MASK_nRedWeight = 1.0; % 1.0 (default) | stable parameter
 MASK_nThreshold = 0.0; % 1.0 (default) | sensitive parameter | if decreasing this parameter then consider increasing BLOB_nThreshold
 
-
 % (!!!) CONSIDER changing this parameter from abs to rel to max (!!!)
 BLOB_nThreshold = 5.0; % 5.0 (default) | roughly, the number of white pixels between blobs norm to max
 
@@ -98,11 +97,14 @@ for iSubject = 1:nSubjects
       s = MASK .* s;
       S(i) = sum(s(:));
     end
-    % plot(diff(S))
-    i = find(diff(S) < BLOB_nThreshold, 1, 'first'); % arbitrary threshold to separate central and peripheral (artificial) blobs 
+    % max radius
+    dS = diff(S);
+    [~, iMax] = max(dS);
+    i = find(dS(iMax:end) < BLOB_nThreshold, 1, 'first');
+    i = i + iMax - 1;
     % info
-    fprintf('Blob statistics | min: %1.0f, max: %1.0f, above-theshold: %1.0f%% | threshold: %1.0f\n', ...
-      min(diff(S)), max(diff(S)), 100 * mean(diff(S) > BLOB_nThreshold), BLOB_nThreshold);
+    fprintf('Blob statistics | min: %1.0f, max: %1.0f, above-theshold: %1.0f%%, R: %d | threshold: %1.0f\n', ...
+      min(diff(S)), max(diff(S)), 100 * mean(diff(S) > BLOB_nThreshold), pR(i), BLOB_nThreshold);
     % check
     if isempty(i)
       nThreshold = BLOB_nThreshold + min(diff(S));

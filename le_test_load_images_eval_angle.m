@@ -171,8 +171,8 @@ for iSubject = 1:nSubjects
       y1 = pxg_min;
       y2 = pxg_max;
 
-      rx = (x2 - x1) / 2;
-      ry = (y2 - y1) / 2;
+      rx = (x2 - x1) / 2; % this should not be constant
+      ry = (y2 - y1) / 2; % this should not be constant
  
       t = linspace(0, 2 * pi, 1000); 
       phi_rad = (phi / 180) * pi;
@@ -229,8 +229,8 @@ for iSubject = 1:nSubjects
     y1 = pxg_min;
     y2 = pxg_max;
 
-    rx = (x2 - x1) / 2;
-    ry = (y2 - y1) / 2;
+    rx = (x2 - x1) / 2; % this should not be constant
+    ry = (y2 - y1) / 2; % this should not be constant
 
     t = linspace(0, 2 * pi, 1000); 
     phi_rad = (phi / 180) * pi;
