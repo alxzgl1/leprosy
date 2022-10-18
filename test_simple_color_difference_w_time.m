@@ -1,17 +1,26 @@
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function test_simple_color_difference_over_time()
+function test_simple_color_difference_w_time()
 
 clc;
 
+iBegSubject = 8;
+
 % parameters
 bCutImage = 1;
-nImageHalfWidth = 350; % in pixels
+nImageHalfWidth = 350; % in pixels | 350 (default) | stable parameter
 
-nRedWeight = 1.15; % 1.15 (default)
+nRedWeight = 1.15; % 1.15 (default) | stable parameter
 
-iBegSubject = 1;
+MASK_nRedWeight = 1.0; % 1.0 (default) | stable parameter
+MASK_nThreshold = 0.0; % 1.0 (default) | sensitive parameter | if decreasing this parameter then consider increasing BLOB_nThreshold
+
+BLOB_nThreshold = 5.0; % 5.0 (default) | roughly, the number of white pixels between blobs norm to max
+
+MASK_pEllipseRatio = [2, 3]; % [2, 3] (default) | stable parameter
+MEDF_nSize = [8, 8]; % [8, 8] (default) | stable parameter
+MEDF_nThreshold = 32; % 32 (default) | stable parameter
 
 % get path
 aPath = support_get_path();
@@ -57,16 +66,15 @@ for iSubject = iBegSubject:nSubjects
 			I = I((y - d):(y + d), (x - d):(x + d), :);
     end
     % median filter
-    GF = I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % RED_weight = 1.0
-    GF = medfilt2(GF, [8, 8]);
+    GF = MASK_nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % MASK_nRedWeight = 1.0 (default)
+    GF = medfilt2(GF, MEDF_nSize);
     % init
-    MASK(:, :, iFile) = double(GF > 32); % arbitrary threshold of 32
+    MASK(:, :, iFile) = double(GF > MEDF_nThreshold); % arbitrary threshold 
   end
   MASK = sum(MASK, 3);
-  MASK = MASK > 1.0; % threshold group MASK
+  MASK = MASK > MASK_nThreshold; % threshold group MASK | 1.0 (default)
 
   % exclude peripheral (artificial) blobs 
-  % parameters: (1) diff(S) < 5 (0 = no white pixels between blobs) 
   bExcludePeripheralBlobs = 1;
   if bExcludePeripheralBlobs == 1
     bDebug = 0; 
@@ -81,7 +89,15 @@ for iSubject = iBegSubject:nSubjects
       S(i) = sum(s(:));
     end
     % plot(diff(S))
-    i = find(diff(S) < 5, 1, 'first'); % arbitrary threshold to separate central and peripheral (artificial) blobs 
+    i = find(diff(S) < BLOB_nThreshold, 1, 'first'); % arbitrary threshold to separate central and peripheral (artificial) blobs 
+    
+    % debug
+    fprintf('Blob statistics | min: %1.0f, max: %1.0f, mean: %1.0f | threshold: %1.0f\n', min(diff(S)), max(diff(S)), mean(diff(S)), BLOB_nThreshold);
+    if isempty(i)
+      fprintf('Current threshold is too low. Consider to change MASK.\n');
+      return
+    end
+    
     % make circle mask with optimal radius
     R = pR(i);
     s = sqrt((-nImageHalfWidth:nImageHalfWidth) .^ 2 + (-nImageHalfWidth:nImageHalfWidth)' .^ 2) < R;
@@ -95,7 +111,7 @@ for iSubject = iBegSubject:nSubjects
     bDebug = 0;
     aFitting = 'angle'; % 'angle', 'eccentricity'
     if strcmp(aFitting, 'angle')
-      MASK = fit_ellipse_angle(MASK, [2, 3], bDebug); % ellipse ratio [x, y] = [2, 2], [2, 3]
+      MASK = fit_ellipse_angle(MASK, MASK_pEllipseRatio, bDebug); % ellipse ratio [x, y] = [2, 2], [2, 3]
     elseif strcmp(aFitting, 'eccentricity')
       MASK = fit_ellipse_eccentricity(MASK, bDebug);
     end
@@ -128,17 +144,14 @@ for iSubject = iBegSubject:nSubjects
 			I = I((y - d):(y + d), (x - d):(x + d), :);
     end
 
-    % color difference
+    % debug: color difference
     % G = I(:, :, 1) - I(:, :, 2) - I(:, :, 3); 
     % G = repmat(G, 1, 1, 3);
 
+    % RGB difference, median filter and threshold
     GF = nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
-    GF = medfilt2(GF, [8, 8]);
- 
-    % threshold
-    h = 32;
-    Q = uint8((GF > h) * 255);
-
+    GF = medfilt2(GF, MEDF_nSize);
+    Q = uint8((GF > MEDF_nThreshold) * 255);
     Q_MASK = Q .* uint8(MASK);
 
     % ulcer size
