@@ -14,9 +14,7 @@ nRedWeight = 1.15; % 1.15 (default) | stable parameter
 MASK_nRedWeight = 1.0; % 1.0 (default) | stable parameter
 MASK_nThreshold = 0.0; % 1.0 (default) | sensitive parameter | if decreasing this parameter then consider increasing BLOB_nThreshold
 
-% (!!!) CONSIDER changing this parameter from abs to rel to max (!!!)
-BLOB_nThreshold = 5.0; % 5.0 (default) | roughly, the number of white pixels between blobs norm to max
-
+BLOB_nThreshold = 0.005; % 0.005 (default) | roughly, ratio of white pixels between blobs norm to max
 
 MASK_pEllipseRatio = [2, 3]; % [2, 3] (default) | stable parameter
 MEDF_nSize = [8, 8]; % [8, 8] (default) | stable parameter
@@ -36,6 +34,8 @@ nSubjects = length(tSubjects);
 % loop subjects
 for iSubject = 1:nSubjects
   aSubject = tSubjects{iSubject};
+  % debug
+  % aSubject = 'S-283';
 
   % status
   fprintf(1, '%s\n', aSubject);
@@ -99,19 +99,21 @@ for iSubject = 1:nSubjects
     end
     % max radius
     dS = diff(S);
+    dS = dS - min(dS);
+    dS = dS / max(dS);
     [~, iMax] = max(dS);
-    i = find(dS(iMax:end) < BLOB_nThreshold, 1, 'first');
-    i = i + iMax - 1;
-    % info
-    fprintf('Blob statistics | min: %1.0f, max: %1.0f, above-theshold: %1.0f%%, R: %d | threshold: %1.0f\n', ...
-      min(diff(S)), max(diff(S)), 100 * mean(diff(S) > BLOB_nThreshold), pR(i), BLOB_nThreshold);
-    % check
-    if isempty(i)
-      nThreshold = BLOB_nThreshold + min(diff(S));
-      fprintf('Current threshold changed to %1.0f | above-theshold: %1.0f%%\n', ...
-        nThreshold, 100 * mean(diff(S) > nThreshold));
-      i = find(diff(S) < nThreshold, 1, 'first');
+    while 1
+      i = find(dS(iMax:end) < BLOB_nThreshold, 1, 'first');
+      if isempty(i)
+        BLOB_nThreshold = BLOB_nThreshold + 0.1 * BLOB_nThreshold;
+      else
+        i = i + iMax - 1;
+        break
+      end
     end
+    % info
+    fprintf('Blob statistics | min: %1.0f, max: %1.0f, above-theshold: %1.0f%%, R: %d | threshold: %1.3f\n', ...
+      min(diff(S)), max(diff(S)), 100 * mean(dS > BLOB_nThreshold), pR(i), BLOB_nThreshold);
     
     % make circle mask with optimal radius
     R = pR(i);
@@ -204,7 +206,7 @@ for iSubject = 1:nSubjects
   % save figure
   aFilename = support_fname({aPath, 'leprosy', '_analysis', 'simple_color_difference', [aSubject, '.png']});
   print(hFigure, aFilename, '-dpng', '-r300');
-  close(hFigure);
+  close(hFigure); 
 end
 
 end % end
