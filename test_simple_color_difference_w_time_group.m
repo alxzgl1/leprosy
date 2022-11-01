@@ -124,6 +124,10 @@ for iSubject = 1:nSubjects
     if bDebug == 1, subplot(2, 2, 2); imshow(MASK); end
   end
 
+  figure;
+  subplot(1, 4, 1);
+  imshow(MASK);
+
   % fit ellipse
   bEllipseMASK = 1;
   if bEllipseMASK == 1
@@ -135,6 +139,9 @@ for iSubject = 1:nSubjects
       MASK = fit_ellipse_eccentricity(MASK, bDebug);
     end
   end
+
+  subplot(1, 4, 2);
+  imshow(MASK);
 
   % static MASK
   bStaticMASK = 0;
