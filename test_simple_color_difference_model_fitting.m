@@ -29,10 +29,10 @@ tSubjects = support_get_subjects(aSubpath);
 nSubjects = length(tSubjects);
 
 % smoothing filter
-% [fb, fa] = butter(2, 0.2, 'low');
+[fb, fa] = butter(4, 0.05, 'low');
 
 % loop subjects
-for iSubject = 3:3 % nSubjects
+for iSubject = 1:1 % nSubjects
   aSubject = tSubjects{iSubject};
   % debug
   % aSubject = 'S-283';
@@ -71,123 +71,122 @@ for iSubject = 3:3 % nSubjects
 		I = I((y - d):(y + d), (x - d):(x + d), :);
   end
 
+
   % model
-  W = 0.5:0.025:1.1;
-  P = zeros(1, length(W));
-  for i = 1:length(W) 
-    subplot(4, 7, i);
-    J = W(i) * I(:, :, 1) - I(:, :, 2) - I(:, :, 3);
+
+  GG = 0; % previous
+ 
+
+  gW = 0.5:0.025:1.1;
+  gR = zeros(1, length(gW));
+  gG = zeros(1, length(gW));
+
+  figure(1);
+
+  for iW = 1:length(gW) 
+    subplot(4, 7, iW);
+    J = gW(iW) * I(:, :, 1) - I(:, :, 2) - I(:, :, 3);
     J = double(J > 0);
-    imshow(J);
-    hold on;
-    plot(1:size(J, 2), sum(J, 1), 'y');
-    plot(sum(J, 2), 1:size(J, 1), 'c');
-    P(i) = sum(sum(J > 0));
-    title(sprintf('%1.2f', W(i)), 'FontWeight', 'normal');
-  end
-  subplot(4, 7, i);
-  plot(W, P, '-*');
-  subplot(4, 7, i + 1);
-  plot(W, [0, diff(P)], '-*');
-  o = 0;
 
-  return
+    x = sum(J, 1); 
+    y = sum(J, 2); 
 
+    x = filtfilt(fb, fa, x);
+    y = filtfilt(fb, fa, y);
 
-  % create mask by averaging subject's images 
-  % parameters: (1) medfilt([8, 8]), (2) h = 32, (3) group MASK > 1
-  nFiles = length(tFiles);
-  MASK = zeros(2 * nImageHalfWidth + 1, 2 * nImageHalfWidth + 1, nFiles);
-  for iFile = 1:nFiles
-    aFile = tFiles{iFile};
-    aFilename = support_fname({aSubpath, aSubject, aFile});
-    % load image
-    I = imread(aFilename);
-    nWidth = size(I, 2);
-    nHeight = size(I, 1);
-		% cut image
-    if bCutImage == 1
-      d = nImageHalfWidth;
-			x = nWidth / 2;
-			y = nHeight / 2;
-			I = I(:, :, :); 
-			I = I((y - d):(y + d), (x - d):(x + d), :);
-    end
-    % median filter
-    GF = MASK_nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % MASK_nRedWeight = 1.0 (default)
-    GF = medfilt2(GF, MEDF_nSize);
-    % init
-    MASK(:, :, iFile) = double(GF > MEDF_nThreshold); % arbitrary threshold 
-  end
-  MASK = sum(MASK, 3);
-  MASK = MASK > MASK_nThreshold; % threshold group MASK | 1.0 (default)
+    % min to max
+    h = 5 / 2;
 
-  % exclude peripheral (artificial) blobs 
-  bExcludePeripheralBlobs = 1;
-  if bExcludePeripheralBlobs == 1
-    bDebug = 0; 
-    if bDebug == 1, figure; subplot(2, 2, 1); imshow(MASK); end
+    ix0 = find(x > h, 1, 'first');
+    ix1 = find(x > h, 1, 'last');
+
+    iy0 = find(y > h, 1, 'first');
+    iy1 = find(y > h, 1, 'last');
+
+    ix = (ix1 - ix0) / 2 + ix0;
+    iy = (iy1 - iy0) / 2 + iy0;
+
+    % max
+%     [~, ix] = max(x);
+%     [~, iy] = max(y);
+
+    cx = ix - nImageHalfWidth;
+    cy = iy - nImageHalfWidth;
+    
     pR = 5:5:nImageHalfWidth;
     nR = length(pR);
     S = zeros(nR, 1);
-    for i = 1:nR
-      R = pR(i);
-      s = sqrt((-nImageHalfWidth:nImageHalfWidth) .^ 2 + (-nImageHalfWidth:nImageHalfWidth)' .^ 2) < R;
-      s = MASK .* s;
-      S(i) = sum(s(:));
+    for iR = 1:nR
+      R = pR(iR);
+      s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+      s = J .* s;
+      S(iR) = sum(s(:));
+      % subplot(4, 7, i);
+      % imshow(s);
     end
-    % max radius
-    dS = diff(S);
-    dS = dS - min(dS);
-    dS = dS / max(dS);
-    [~, iMax] = max(dS);
-    while 1
-      i = find(dS(iMax:end) < BLOB_nThreshold, 1, 'first');
-      if isempty(i)
-        BLOB_nThreshold = BLOB_nThreshold + 0.1 * BLOB_nThreshold;
-      else
-        i = i + iMax - 1;
-        break
-      end
+    xR = 5;
+    dS = [0; diff(S)];
+    [~, i] = max(dS);
+
+    iR = find(dS(i:end) < xR, 1, 'first') + i;
+
+    R = pR(iR);
+
+    s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+
+    % bPlotA1 = 0;
+    % if bPlotA1 == 1
+    %   subplot(2, 2, 1); imshow(s); hold on;
+    %   plot(1:size(J, 2), iy * ones(1, size(J, 2)), 'y');
+    %   plot(ix * ones(1, size(J, 1)), 1:size(J, 1), 'c');
+    % 
+    %   subplot(2, 2, 2); imshow(J); hold on;
+    %   plot(1:size(J, 2), iy * ones(1, size(J, 2)), 'y');
+    %   plot(ix * ones(1, size(J, 1)), 1:size(J, 1), 'c');
+    % 
+    %   subplot(2, 2, 3); imshow(s - J); hold on;
+    %   plot(1:size(J, 2), iy * ones(1, size(J, 2)), 'y');
+    %   plot(ix * ones(1, size(J, 1)), 1:size(J, 1), 'c');
+    % end
+
+    imshow(s - J);
+
+    G = sum(J(:)) / R .^ 2;
+
+    gG(iW) = G;
+    gR(iW) = R;
+
+    bBREAK = 0;
+    if (G - GG) < 0 && G / GG < 0.95
+      bBREAK = 1;
     end
-    % info
-    fprintf('Blob statistics | min: %1.0f, max: %1.0f, above-theshold: %1.0f%%, R: %d | threshold: %1.3f\n', ...
-      min(diff(S)), max(diff(S)), 100 * mean(dS > BLOB_nThreshold), pR(i), BLOB_nThreshold);
+
+    GG = G;
     
-    % make circle mask with optimal radius
-    R = pR(i);
-    s = sqrt((-nImageHalfWidth:nImageHalfWidth) .^ 2 + (-nImageHalfWidth:nImageHalfWidth)' .^ 2) < R;
-    MASK = MASK .* s;
-    % exception
-    if sum(MASK(:)) == 0, MASK = s; end
-    if bDebug == 1, subplot(2, 2, 2); imshow(MASK); end
-  end
+    title(sprintf('%1.2f | %d | %1.2f', gW(iW), R, G), 'FontWeight', 'normal');
 
-  figure;
-  subplot(1, 4, 1);
-  imshow(MASK);
-
-  % fit ellipse
-  bEllipseMASK = 1;
-  if bEllipseMASK == 1
-    bDebug = 0;
-    aFitting = 'angle'; % 'angle', 'eccentricity'
-    if strcmp(aFitting, 'angle')
-      MASK = fit_ellipse_angle(MASK, MASK_pEllipseRatio, bDebug); % ellipse ratio [x, y] = [2, 2], [2, 3]
-    elseif strcmp(aFitting, 'eccentricity')
-      MASK = fit_ellipse_eccentricity(MASK, bDebug);
+    if bBREAK == 1
+      iW = iW + 1;
+      break
     end
-  end
 
-  subplot(1, 4, 2);
-  imshow(MASK);
-
-  % static MASK
-  bStaticMASK = 0;
-  if bStaticMASK == 1
-    R = 200;
-    MASK = uint8(sqrt((-nImageHalfWidth:nImageHalfWidth) .^ 2 + (-nImageHalfWidth:nImageHalfWidth)' .^ 2) < R);
   end
+  subplot(4, 7, iW);
+  plot(gW, gG, '-*');
+  title('G', 'FontWeight', 'normal');
+  subplot(4, 7, iW + 1);
+  plot(gW, gR, '-*');
+  title('R', 'FontWeight', 'normal');
+
+  % We have here: W(red) and R(image_1) for MASK (!)
+  % Then we apply W(red) for second image, detect center of image and apply MASK with R(image_1)
+
+  % init R
+  R = gR(iW - 2);
+  W = gW(iW - 2);
+
+
+  figure(2);
 
   % loop files
   nFiles = length(tFiles);
@@ -209,35 +208,60 @@ for iSubject = 3:3 % nSubjects
 			I = I((y - d):(y + d), (x - d):(x + d), :);
     end
 
-    % debug: color difference
-    % G = I(:, :, 1) - I(:, :, 2) - I(:, :, 3); 
-    % G = repmat(G, 1, 1, 3);
+    J = W * I(:, :, 1) - I(:, :, 2) - I(:, :, 3);
+    J = double(J > 0);
 
-    % RGB difference, median filter and threshold
-    GF = nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % fit this model
-    GF = medfilt2(GF, MEDF_nSize);
-    Q = uint8((GF > MEDF_nThreshold) * 255);
-    Q_MASK = Q .* uint8(MASK);
+    x = sum(J, 1); 
+    y = sum(J, 2); 
+
+    x = filtfilt(fb, fa, x);
+    y = filtfilt(fb, fa, y);
+
+    % min to max
+    h = 5 / 2;
+
+    ix0 = find(x > h, 1, 'first');
+    ix1 = find(x > h, 1, 'last');
+
+    iy0 = find(y > h, 1, 'first');
+    iy1 = find(y > h, 1, 'last');
+
+    ix = (ix1 - ix0) / 2 + ix0;
+    iy = (iy1 - iy0) / 2 + iy0;
+
+    % max
+%     [~, ix] = max(x);
+%     [~, iy] = max(y);
+
+    cx = ix - nImageHalfWidth;
+    cy = iy - nImageHalfWidth;
+
+    s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+    MASK = s;
+
+
+
 
     % ulcer size
-    nUlcerSize = sum(Q_MASK(:) > 0) / length(Q_MASK(:));
-    pUlcerSize(iFile) = nUlcerSize;
+% %     nUlcerSize = sum(Q_MASK(:) > 0) / length(Q_MASK(:));
+% %     pUlcerSize(iFile) = nUlcerSize;
 
     subplot(4, 8, (iFile - 1) * 2 + 1);
     imshow(I); 
 
     subplot(4, 8, (iFile - 1) * 2 + 2);
-    imshow(Q_MASK); 
+    imshow(J .* MASK); % imshow(MASK); 
+
 
     hold on;
-
-    % cross hair
-    bCrossHair = 0;
-    if bCrossHair == 1
-      plot(1:(2 * nImageHalfWidth), zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 'LineWidth', 1, 'Color', 'c');
-      plot(zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 1:(2 * nImageHalfWidth), 'LineWidth', 1, 'Color', 'c');
-      title(sprintf('Ulcer: %1.4f', nUlcerSize), 'FontWeight', 'normal');
-    end
+% % % % 
+% % % %     % cross hair
+% % % %     bCrossHair = 0;
+% % % %     if bCrossHair == 1
+% % % %       plot(1:(2 * nImageHalfWidth), zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 'LineWidth', 1, 'Color', 'c');
+% % % %       plot(zeros(2 * nImageHalfWidth, 1) + nImageHalfWidth, 1:(2 * nImageHalfWidth), 'LineWidth', 1, 'Color', 'c');
+% % % %       title(sprintf('Ulcer: %1.4f', nUlcerSize), 'FontWeight', 'normal');
+% % % %     end
 
     % break
     if iFile > 14
