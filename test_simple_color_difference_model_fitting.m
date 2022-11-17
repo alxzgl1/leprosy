@@ -32,7 +32,7 @@ nSubjects = length(tSubjects);
 % [fb, fa] = butter(2, 0.2, 'low');
 
 % loop subjects
-for iSubject = 2:2 % nSubjects
+for iSubject = 3:3 % nSubjects
   aSubject = tSubjects{iSubject};
   % debug
   % aSubject = 'S-283';
@@ -77,8 +77,13 @@ for iSubject = 2:2 % nSubjects
   for i = 1:length(W) 
     subplot(4, 7, i);
     J = W(i) * I(:, :, 1) - I(:, :, 2) - I(:, :, 3);
-    imshow(J > 0);
+    J = double(J > 0);
+    imshow(J);
+    hold on;
+    plot(1:size(J, 2), sum(J, 1), 'y');
+    plot(sum(J, 2), 1:size(J, 1), 'c');
     P(i) = sum(sum(J > 0));
+    title(sprintf('%1.2f', W(i)), 'FontWeight', 'normal');
   end
   subplot(4, 7, i);
   plot(W, P, '-*');
