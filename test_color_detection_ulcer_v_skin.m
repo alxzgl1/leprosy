@@ -1,7 +1,7 @@
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function le_color_difference_model_fitting()
+function test_color_detection_ulcer_v_skin()
 
 clc;
 
@@ -33,7 +33,10 @@ nSubjects = length(tSubjects);
 
 % loop subjects
 for iSubject = 1:1 % nSubjects
-  aSubject = tSubjects{iSubject};
+  % aSubject = tSubjects{iSubject};
+
+  aSubject = tSubjects{contains(tSubjects, 'S-175')};
+
   % debug
   % aSubject = 'S-283';
 
@@ -71,6 +74,43 @@ for iSubject = 1:1 % nSubjects
 		I = I((y - d):(y + d), (x - d):(x + d), :);
   end
 
+  % decompose
+  j = 1;
+  J = I;
+  for i = 1:25:700
+    subplot(4, 7, j);
+    bCols = 1;
+    if bCols == 1
+      RI = squeeze(I(:, i, 1));
+      GI = squeeze(I(:, i, 2));
+      BI = squeeze(I(:, i, 3));
+      J(:, i, :) = 0;
+    else
+      RI = squeeze(I(i, :, 1));
+      GI = squeeze(I(i, :, 2));
+      BI = squeeze(I(i, :, 3));
+      J(i, :, :) = 0;
+    end
+  
+    bFourLines = 0;
+    if bFourLines == 1
+      plot(RI, 'Color', 'r'); hold on;
+      plot(GI, 'Color', [0, 0.5, 0]);
+      plot(BI, 'Color', 'b');
+      plot(RI - GI - BI, 'Color', 'k');
+    else
+      plot(RI, 'Color', 'r'); hold on;
+      plot(GI + BI, 'Color', [0, 0.5, 0.5]);
+      plot(RI - GI - BI, 'Color', 'k');
+    end
+    j = j + 1;
+  end
+  figure;
+  imshow(J);
+  figure;
+  imshow(I(:, :, 1) - I(:, :, 2) - I(:, :, 3));
+
+  return
 
   % model
 
