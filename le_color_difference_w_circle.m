@@ -57,7 +57,12 @@ for iSubject = 1:nSubjects
 
   % create mask by averaging subject's images 
   % parameters: (1) medfilt([8, 8]), (2) h = 32, (3) group MASK > 1
+
+  [fb, fa] = butter(2, 0.1, 'low'); % ???
+
   nFiles = length(tFiles);
+  pRedWeights = 0.5:0.05:1.25;
+  nRedWeights = length(pRedWeights);
   MASK = zeros(2 * nImageHalfWidth + 1, 2 * nImageHalfWidth + 1, nFiles);
   for iFile = 1:nFiles
     aFile = tFiles{iFile};
@@ -75,13 +80,100 @@ for iSubject = 1:nSubjects
 			I = I((y - d):(y + d), (x - d):(x + d), :);
     end
     % median filter
-    GF = MASK_nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % MASK_nRedWeight = 1.0 (default)
-    GF = medfilt2(GF, MEDF_nSize);
+    % GF = MASK_nRedWeight * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); % MASK_nRedWeight = 1.0 (default)
+    % 
+
+    GG = 0;
+    gR = zeros(1, nRedWeights); 
+    gG = zeros(1, nRedWeights); 
+    gJ = zeros(size(I, 1), size(I, 2), nRedWeights);
+
+    for iRedWeight = 1:nRedWeights 
+
+      J = pRedWeights(iRedWeight) * I(:, :, 1) - I(:, :, 2) - I(:, :, 3); 
+      J = double(J);
+      J = medfilt2(J, [8, 8]);
+
+      % circle fitting
+      x = sum(J, 1); 
+      y = sum(J, 2); 
+  
+      % min to max
+      h = 5 / 2;
+  
+      ix0 = find(x > h, 1, 'first');
+      ix1 = find(x > h, 1, 'last');
+  
+      iy0 = find(y > h, 1, 'first');
+      iy1 = find(y > h, 1, 'last');
+  
+      ix = (ix1 - ix0) / 2 + ix0;
+      iy = (iy1 - iy0) / 2 + iy0;
+
+      cx = ix - nImageHalfWidth;
+      cy = iy - nImageHalfWidth;
+
+      if isempty(cx) || isempty(cy)
+        continue
+      end
+      
+      pR = 5:5:nImageHalfWidth;
+      nR = length(pR);
+      S = zeros(nR, 1);
+      for iR = 1:nR
+        R = pR(iR);
+        s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+        s = J .* s;
+        S(iR) = sum(s(:));
+        % subplot(4, 7, i);
+        % imshow(s);
+      end
+      xR = 5;
+      dS = [0; diff(S)];
+      [~, i] = max(dS);
+  
+      iR = find(dS(i:end) < xR, 1, 'first') + i;
+  
+      if isempty(iR) || iR > length(pR)
+        continue
+      end
+
+      R = pR(iR);
+      gR(iRedWeight) = R;
+  
+      % s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+
+      G = sum(J(:)) / R .^ 2;
+      gG(iRedWeight) = G;
+
+
+      bBREAK = 0;
+      if (G - GG) < 0 && G / GG < 0.95
+        bBREAK = 1;
+      end
+  
+
+      gJ(:, :, iRedWeight) = double(J); 
+
+      GG = G;
+
+      if bBREAK == 1
+        break
+      end
+
+    end
+    MASK(:, :, iFile) = gJ(:, :, iRedWeight - 1);
+
     % init
-    MASK(:, :, iFile) = double(GF > MEDF_nThreshold); % arbitrary threshold 
+    % MASK(:, :, iFile) = double(GF > MEDF_nThreshold); % arbitrary threshold 
+
+  
+
   end
   MASK = sum(MASK, 3);
   MASK = MASK > MASK_nThreshold; % threshold group MASK | 1.0 (default)
+
+  MASK0 = MASK;
 
   % exclude peripheral (artificial) blobs 
   bExcludePeripheralBlobs = 1;
@@ -124,20 +216,75 @@ for iSubject = 1:nSubjects
     if bDebug == 1, subplot(2, 2, 2); imshow(MASK); end
   end
 
-  figure;
-  subplot(1, 4, 1);
-  imshow(MASK);
+  MASK1 = MASK;
 
-  % fit ellipse
-  bEllipseMASK = 1;
-  if bEllipseMASK == 1
-    bDebug = 0;
-    aFitting = 'angle'; % 'angle', 'eccentricity'
-    if strcmp(aFitting, 'angle')
-      MASK = fit_ellipse_angle(MASK, MASK_pEllipseRatio, bDebug); % ellipse ratio [x, y] = [2, 2], [2, 3]
-    elseif strcmp(aFitting, 'eccentricity')
-      MASK = fit_ellipse_eccentricity(MASK, bDebug);
+  % debug
+  % figure;
+  % subplot(2, 2, 1);
+  % imshow(MASK0);
+  % subplot(2, 2, 2);
+  % imshow(MASK1);
+  % debug^
+
+  % fit circle
+  bCircleMASK = 1;
+  if bCircleMASK == 1
+
+    J = MASK;
+
+    % circle fitting
+    x = sum(J, 1); 
+    y = sum(J, 2); 
+
+    % min to max
+    h = 5 / 2;
+
+    ix0 = find(x > h, 1, 'first');
+    ix1 = find(x > h, 1, 'last');
+
+    iy0 = find(y > h, 1, 'first');
+    iy1 = find(y > h, 1, 'last');
+
+    ix = (ix1 - ix0) / 2 + ix0;
+    iy = (iy1 - iy0) / 2 + iy0;
+
+    cx = ix - nImageHalfWidth;
+    cy = iy - nImageHalfWidth;
+    
+    pR = 5:5:nImageHalfWidth;
+    nR = length(pR);
+    S = zeros(nR, 1);
+    for iR = 1:nR
+      R = pR(iR);
+      s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+      s = J .* s;
+      S(iR) = sum(s(:));
+      % subplot(4, 7, i);
+      % imshow(s);
     end
+    xR = 5;
+    dS = [0; diff(S)];
+    [~, i] = max(dS);
+
+    iR = find(dS(i:end) < xR, 1, 'first') + i;
+
+    R = pR(iR);
+    gR(iRedWeight) = R;
+  
+    MASK = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+
+    % debug
+    % subplot(2, 2, 3);
+    % imshow(MASK);
+    % debug^
+
+% % % %     bDebug = 0;
+% % % %     aFitting = 'angle'; % 'angle', 'eccentricity'
+% % % %     if strcmp(aFitting, 'angle')
+% % % %       MASK = fit_ellipse_angle(MASK, MASK_pEllipseRatio, bDebug); % ellipse ratio [x, y] = [2, 2], [2, 3]
+% % % %     elseif strcmp(aFitting, 'eccentricity')
+% % % %       MASK = fit_ellipse_eccentricity(MASK, bDebug);
+% % % %     end
   end
 
   subplot(1, 4, 2);
@@ -211,7 +358,7 @@ for iSubject = 1:nSubjects
   plot(pUlcerSize, '-*'); box off;
  
   % save figure
-  aFilename = support_fname({aPath, 'leprosy', '_analysis', 'simple_color_difference', [aSubject, '.png']});
+  aFilename = support_fname({aPath, 'leprosy', '_analysis', 'color_difference', [aSubject, '.png']});
   print(hFigure, aFilename, '-dpng', '-r300');
   close(hFigure); 
 end
