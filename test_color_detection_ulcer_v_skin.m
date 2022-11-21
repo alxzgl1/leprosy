@@ -41,7 +41,7 @@ for iSubject = 1:1 % nSubjects
   end
 
   % get initial image
-  aFile = tFiles{1};
+  aFile = tFiles{end};
   aFilename = support_fname({aSubpath, aSubject, aFile});
   % load image
   I = imread(aFilename);
@@ -63,7 +63,7 @@ for iSubject = 1:1 % nSubjects
     J = I;
     for i = 1:25:700
       subplot(4, 7, j);
-      bCols = 1;
+      bCols = 0;
       if bCols == 1
         RI = squeeze(I(:, i, 1));
         GI = squeeze(I(:, i, 2));
