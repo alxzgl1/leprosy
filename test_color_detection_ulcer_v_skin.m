@@ -41,7 +41,7 @@ for iSubject = 1:1 % nSubjects
   end
 
   % get initial image
-  aFile = tFiles{end};
+  aFile = tFiles{1};
   aFilename = support_fname({aSubpath, aSubject, aFile});
   % load image
   I = imread(aFilename);
