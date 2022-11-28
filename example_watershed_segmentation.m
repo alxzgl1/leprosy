@@ -1,12 +1,12 @@
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function test_watershed_segmentation()
+function example_watershed_segmentation()
 
 % Step 1: Read in the Color Image and Convert it to Grayscale
 % rgb = imread('pears.png');
 
-rgb = imread('c:\Users\alexa\Downloads\S-1_20200921.png');
+rgb = imread('d:\data\leprosy\TABLE_Aranz_Image\S-01\S-1_20200921.png');
 
 % cut image
 I = rgb;
