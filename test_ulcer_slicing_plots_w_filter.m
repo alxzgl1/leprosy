@@ -1,7 +1,7 @@
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function test_ulcer_slicing_plots()
+function test_ulcer_slicing_plots_w_filter()
 
 clc;
 
@@ -18,7 +18,7 @@ tSubjects = support_get_subjects(aSubpath);
 nSubjects = length(tSubjects);
 
 % smoothing filter
-[fb, fa] = butter(4, 0.01, 'low');
+[fb, fa] = butter(4, 0.05, 'low');
 
 % loop subjects
 for iSubject = 1:nSubjects
@@ -65,19 +65,42 @@ for iSubject = 1:nSubjects
 		  I = I((y - d):(y + d), (x - d):(x + d), :);
     end
     % median filter
-    D = [20, 20];
-    J_R = medfilt2(I(:, :, 1), D);
-    J_G = medfilt2(I(:, :, 2), D);
-    J_B = medfilt2(I(:, :, 3), D);
-    J = cat(3, J_R, J_G, J_B);
-    H = double(J);
-    S = double(J);
+    bMedianFilter = 0;
+    if bMedianFilter == 1
+      D = [20, 20];
+      J_R = medfilt2(I(:, :, 1), D);
+      J_G = medfilt2(I(:, :, 2), D);
+      J_B = medfilt2(I(:, :, 3), D);
+      J = cat(3, J_R, J_G, J_B);
+      H = double(J);
+      S = J;
+    end
+
+    % filter
+    bLP_Filter = 1;
+    if bLP_Filter == 1
+      J_R = I(:, :, 1);
+      J_G = I(:, :, 2);
+      J_B = I(:, :, 3);
+      % smooth rows
+      J_R = uint8(filtfilt(fb, fa, double(J_R)')');
+      J_G = uint8(filtfilt(fb, fa, double(J_G)')');
+      J_B = uint8(filtfilt(fb, fa, double(J_B)')');
+      % smooth cols
+      J_R = uint8(filtfilt(fb, fa, double(J_R)));
+      J_G = uint8(filtfilt(fb, fa, double(J_G)));
+      J_B = uint8(filtfilt(fb, fa, double(J_B)));
+      % init
+      J = cat(3, J_R, J_G, J_B);
+      H = double(J);
+      S = double(J);
+    end
 
     % open figure
     hFigure = figure; 
     set(hFigure, 'NumberTitle', 'off', 'Position', [0, 0, 1920, 1080] / 2.0, 'MenuBar', 'none', 'Resize', 'off', 'Visible', 'off'); 
 
-    % decompose
+        % decompose
     j = 1;
     for i = 100:50:((2 * nImageHalfWidth) - 50)
       subplot(4, 4, j + 4);
@@ -93,12 +116,12 @@ for iSubject = 1:nSubjects
         BI = squeeze(S(i, :, 3));
         J((i + 1):(i + 4), :, :) = 0;
       end
-      plot((RI + GI + BI) / 3, 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1, 'LineStyle', '-.'); hold on;
       plot(RI, 'Color', 'r', 'LineWidth', 1); hold on;
       plot(GI, 'Color', [0, 0.5, 0], 'LineWidth', 1);
       plot(BI, 'Color', 'b', 'LineWidth', 1);
       plot((-1) * (double(GI) - double(BI)), 'Color', [0, 0.5, 0.5], 'LineWidth', 1);
       plot((-1) * double(RI - GI - BI), 'Color', 'k', 'LineWidth', 1); 
+
       box off; xlim([1, 2 * nImageHalfWidth]); ylim([-96, 256]);
       if j == 1
         title(sprintf('day %d', nDateDif), 'FontWeight', 'normal');
@@ -108,75 +131,17 @@ for iSubject = 1:nSubjects
     subplot(4, 4, 1);
     imshow(J);
     subplot(4, 4, 2);
-    X = abs(H(:, :, 2) - H(:, :, 3)) < 10;
-    imshow(X);
+    x = abs(H(:, :, 2) - H(:, :, 3)) < 10;
+    imshow(x);
     subplot(4, 4, 3);
-    % X = H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 0; % dRED1
-    X = 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 80; % dRED2
-    imshow(X);
-
-    H = abs(H(:, :, 2) - H(:, :, 3)) < 10 & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 80;
-
-    % circle limit
-    bCircleLimit = 1;
-    if bCircleLimit == 1
-      x = sum(H, 1); 
-      y = sum(H, 2); 
-      x = filtfilt(fb, fa, x);
-      y = filtfilt(fb, fa, y);
-      % min to max
-      h = 5 / 2;
-      ix0 = find(x > h, 1, 'first');
-      ix1 = find(x > h, 1, 'last');
-      iy0 = find(y > h, 1, 'first');
-      iy1 = find(y > h, 1, 'last');
-      ix = (ix1 - ix0) / 2 + ix0;
-      iy = (iy1 - iy0) / 2 + iy0;
-      % max
-      [~, ix] = max(x);
-      [~, iy] = max(y);
-      cx = ix - nImageHalfWidth;
-      cy = iy - nImageHalfWidth;
-  
-      bDebug = 0;
-      if bDebug == 1
-        figure;
-        imshow(H); hold on;
-        plot(1:size(H, 2), x + nImageHalfWidth, 'y');
-        plot(y + nImageHalfWidth, 1:size(H, 1), 'c');
-        plot(1:size(H, 2), iy * ones(1, size(H, 2)), 'y');
-        plot(ix * ones(1, size(H, 1)), 1:size(H, 1), 'c');
-      end
-  
-      pR = 5:5:nImageHalfWidth;
-      nR = length(pR);
-      S = zeros(nR, 1);
-      for iR = 1:nR
-        R = pR(iR);
-        s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
-        s = H .* s;
-        S(iR) = sum(s(:));
-        % subplot(4, 7, i);
-        % imshow(s);
-      end
-      xR = 5;
-      dS = [0; diff(S)];
-      [~, i] = max(dS);
-  
-      iR = find(dS(i:end) < xR, 1, 'first') + i;
-  
-      R = pR(iR);
-  
-      M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
-
-      H = M .* H;
-    end
-
+    x = H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 0;
+    imshow(x);
     subplot(4, 4, 4);
+    H = abs(H(:, :, 2) - H(:, :, 3)) < 10 & H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 0;
     imshow(H);
   
     % save image
-    aDir = support_fname({aPath, 'leprosy', '_analysis', 'slicing_plots', aSubject});
+    aDir = support_fname({aPath, 'leprosy', '_analysis', 'slicing_plots_w_filter', aSubject});
     if ~exist(aDir, 'dir')
       mkdir(aDir);
     end
