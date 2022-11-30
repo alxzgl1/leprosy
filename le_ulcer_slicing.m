@@ -1,7 +1,7 @@
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function test_ulcer_slicing_plots()
+function le_ulcer_slicing()
 
 clc;
 
@@ -27,6 +27,7 @@ nSubjects = length(tSubjects);
 % loop subjects
 for iSubject = 1:nSubjects
   aSubject = tSubjects{iSubject};
+
   % get files
   tFiles = [];
   a = dir(support_fname({aSubpath, aSubject}));
@@ -38,9 +39,15 @@ for iSubject = 1:nSubjects
     end
   end
 
+  % open figure
+  hFigure = figure; 
+  set(hFigure, 'NumberTitle', 'off', 'Position', [0, 0, 1920, 1080] / 2.0, 'MenuBar', 'none', 'Resize', 'off', 'Visible', 'off'); 
+
   % loop files
-  nDateRef = datetime('now');
   nFiles = length(tFiles);
+  pUlcerSize = zeros(1, nFiles);
+  pDays = zeros(1, nFiles);
+  nDateRef = datetime('now');
   for iFile = 1:nFiles
     aFile = tFiles{iFile};
     aFilename = support_fname({aSubpath, aSubject, aFile});
@@ -55,6 +62,7 @@ for iSubject = 1:nSubjects
       nDateRef = nDate; 
     end
     nDateDif = days(nDate - nDateRef);
+    pDays(iFile) = nDateDif;
 
     % load image
     I = imread(aFilename);
@@ -94,48 +102,6 @@ for iSubject = 1:nSubjects
       H = double(J);
       S = double(J);
     end
-
-    % open figure
-    hFigure = figure; 
-    set(hFigure, 'NumberTitle', 'off', 'Position', [0, 0, 1920, 1080] / 2.0, 'MenuBar', 'none', 'Resize', 'off', 'Visible', 'off'); 
-
-    % decompose
-    j = 1;
-    for i = 100:50:((2 * nImageHalfWidth) - 50)
-      subplot(4, 4, j + 4);
-      bCols = 0;
-      if bCols == 1
-        RI = squeeze(S(:, i, 1));
-        GI = squeeze(S(:, i, 2));
-        BI = squeeze(S(:, i, 3));
-        J(:, (i + 1):(i + 4), :) = 0;
-      else
-        RI = squeeze(S(i, :, 1));
-        GI = squeeze(S(i, :, 2));
-        BI = squeeze(S(i, :, 3));
-        J((i + 1):(i + 4), :, :) = 0;
-      end
-      plot(zeros(size(RI)), 'Color', 'k', 'LineStyle', '-.'); hold on;
-      plot((RI + GI + BI) / 3, 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1, 'LineStyle', '-.'); 
-      plot(RI, 'Color', 'r', 'LineWidth', 1); 
-      plot(GI, 'Color', [0, 0.5, 0], 'LineWidth', 1);
-      plot(BI, 'Color', 'b', 'LineWidth', 1);
-      plot((-1) * (double(GI) - double(BI)), 'Color', [0, 0.5, 0.5], 'LineWidth', 1);
-      % plot((-1) * double(RI - GI - BI), 'Color', 'k', 'LineWidth', 1);
-      box off; xlim([1, 2 * nImageHalfWidth]); ylim([-96, 256]);
-      if j == 1
-        title(sprintf('day %d', nDateDif), 'FontWeight', 'normal');
-      end
-      j = j + 1;
-    end
-    subplot(4, 4, 1);
-    imshow(J);
-    subplot(4, 4, 2);
-    X = abs(H(:, :, 2) - H(:, :, 3)) < 10;
-    imshow(X);
-    subplot(4, 4, 3);
-    X = 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 80; % dRED2
-    imshow(X);
 
     H = abs(H(:, :, 2) - H(:, :, 3)) < 10 & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 80;
 
@@ -177,7 +143,7 @@ for iSubject = 1:nSubjects
       hS = dS > xR;
       i = find(hS > 0, 1, 'first');
       if i < 20
-        iR = find(hS(i:end) < 1, 1, 'first') + i;
+        iR = find(hS(i:end) < 1, 1, 'first') + i - 1;
         if isempty(iR)
           iR = length(pR);
         end
@@ -193,19 +159,33 @@ for iSubject = 1:nSubjects
       H = M .* H;
     end
 
-    subplot(4, 4, 4);
-    imshow(H + CIRCLE);
-    title(sprintf('size: %1.4f', sum(H(:)) / (nImageHalfWidth .^ 2)), 'FontWeight', 'normal');
-  
-    % save image
-    aDir = support_fname({aPath, 'leprosy', '_analysis', ['slicing_plots_', aFilter], aSubject});
-    if ~exist(aDir, 'dir')
-      mkdir(aDir);
+    pUlcerSize(iFile) = sum(H(:)) / (nImageHalfWidth .^ 2);
+
+    if iFile < 20
+      subplot(5, 8, (iFile - 1) * 2 + 1); imshow(I);
+      title(sprintf('day: %d', pDays(iFile)), 'FontWeight', 'normal', 'FontSize', 8);
+      subplot(5, 8, (iFile - 1) * 2 + 2); imshow(H);
+      title(sprintf('size: %1.4f', pUlcerSize(iFile)), 'FontWeight', 'normal', 'FontSize', 8);
     end
-    aFilename = support_fname({aDir, aFile});
-    print(hFigure, aFilename, '-dpng', '-r300');
-    close(hFigure);  
   end
+  subplot(5, 8, [39, 40]); 
+  x = pDays(pDays < 60);
+  y = pUlcerSize(pDays < 60);
+  p = fit(x(:), y(:), 'exp1');
+  plot(p, x, y, '*'); box off;
+  xlabel('size'); ylabel('days');
+  set(gca, 'FontSize', 8);
+  legend('off');
+  title(sprintf('b = %1.3f', p.b), 'FontWeight', 'normal', 'FontSize', 8);
+  
+  % save image
+  aDir = support_fname({aPath, 'leprosy', '_analysis', ['slicing_', aFilter]});
+  if ~exist(aDir, 'dir')
+    mkdir(aDir);
+  end
+  aFilename = support_fname({aDir, [aSubject, '.png']});
+  print(hFigure, aFilename, '-dpng', '-r300');
+  close(hFigure);  
 end
 
 end % end
