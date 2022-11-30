@@ -20,10 +20,13 @@ nSubjects = length(tSubjects);
 % smoothing filter
 [fb, fa] = butter(4, 0.01, 'low');
 
+% LP filter
+[lfb, lfa] = butter(4, 0.05, 'low');
+aFilter = 'lowpass'; % 'median' (default), 'lowpass'
+
 % loop subjects
 for iSubject = 1:nSubjects
   aSubject = tSubjects{iSubject};
-  
   % get files
   tFiles = [];
   a = dir(support_fname({aSubpath, aSubject}));
@@ -66,13 +69,31 @@ for iSubject = 1:nSubjects
 		  I = I((y - d):(y + d), (x - d):(x + d), :);
     end
     % median filter
-    D = [20, 20];
-    J_R = medfilt2(I(:, :, 1), D);
-    J_G = medfilt2(I(:, :, 2), D);
-    J_B = medfilt2(I(:, :, 3), D);
-    J = cat(3, J_R, J_G, J_B);
-    H = double(J);
-    S = double(J);
+    if strcmp(aFilter, 'median')
+      D = [20, 20];
+      J_R = medfilt2(I(:, :, 1), D);
+      J_G = medfilt2(I(:, :, 2), D);
+      J_B = medfilt2(I(:, :, 3), D);
+      J = cat(3, J_R, J_G, J_B);
+      H = double(J);
+      S = double(J);
+    elseif strcmp(aFilter, 'lowpass')
+      J_R = I(:, :, 1);
+      J_G = I(:, :, 2);
+      J_B = I(:, :, 3);
+      % smooth rows
+      J_R = uint8(filtfilt(lfb, lfa, double(J_R)')');
+      J_G = uint8(filtfilt(lfb, lfa, double(J_G)')');
+      J_B = uint8(filtfilt(lfb, lfa, double(J_B)')');
+      % smooth cols
+      J_R = uint8(filtfilt(lfb, lfa, double(J_R)));
+      J_G = uint8(filtfilt(lfb, lfa, double(J_G)));
+      J_B = uint8(filtfilt(lfb, lfa, double(J_B)));
+      % init
+      J = cat(3, J_R, J_G, J_B);
+      H = double(J);
+      S = double(J);
+    end
 
     % open figure
     hFigure = figure; 
@@ -94,12 +115,13 @@ for iSubject = 1:nSubjects
         BI = squeeze(S(i, :, 3));
         J((i + 1):(i + 4), :, :) = 0;
       end
-      plot((RI + GI + BI) / 3, 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1, 'LineStyle', '-.'); hold on;
-      plot(RI, 'Color', 'r', 'LineWidth', 1); hold on;
+      plot(zeros(size(RI)), 'Color', 'k', 'LineStyle', '-.'); hold on;
+      plot((RI + GI + BI) / 3, 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1, 'LineStyle', '-.'); 
+      plot(RI, 'Color', 'r', 'LineWidth', 1); 
       plot(GI, 'Color', [0, 0.5, 0], 'LineWidth', 1);
       plot(BI, 'Color', 'b', 'LineWidth', 1);
       plot((-1) * (double(GI) - double(BI)), 'Color', [0, 0.5, 0.5], 'LineWidth', 1);
-      plot((-1) * double(RI - GI - BI), 'Color', 'k', 'LineWidth', 1); 
+      % plot((-1) * double(RI - GI - BI), 'Color', 'k', 'LineWidth', 1);
       box off; xlim([1, 2 * nImageHalfWidth]); ylim([-96, 256]);
       if j == 1
         title(sprintf('day %d', nDateDif), 'FontWeight', 'normal');
@@ -125,30 +147,8 @@ for iSubject = 1:nSubjects
       y = sum(H, 2); 
       x = filtfilt(fb, fa, x);
       y = filtfilt(fb, fa, y);
-      % min to max
-      % h = 5 / 2;
-      % ix0 = find(x > h, 1, 'first');
-      % ix1 = find(x > h, 1, 'last');
-      % iy0 = find(y > h, 1, 'first');
-      % iy1 = find(y > h, 1, 'last');
-      % ix = (ix1 - ix0) / 2 + ix0;
-      % iy = (iy1 - iy0) / 2 + iy0;
-      % max
-      % [~, ix] = max(x((nImageHalfWidth - 50):(nImageHalfWidth + 50)));
-      % [~, iy] = max(y((nImageHalfWidth - 50):(nImageHalfWidth + 50)));
-      % ix = ix + nImageHalfWidth - 50;
-      % iy = iy + nImageHalfWidth - 50;
-      % center
-      % ix = nImageHalfWidth;
-      % iy = nImageHalfWidth;
-
-      % cx = ix - nImageHalfWidth;
-      % cy = iy - nImageHalfWidth;
-
-      % assume ulcer in the center
       cx = 0;
       cy = 0;
-  
       bDebug = 0;
       if bDebug == 1
         figure;
@@ -163,7 +163,7 @@ for iSubject = 1:nSubjects
         % plot(ones(size(x)) * (nImageHalfWidth - 50), 1:size(H, 1), 'c');
         % plot(ones(size(x)) * (nImageHalfWidth + 50), 1:size(H, 1), 'c');
       end
-  
+      % range circles
       pR = 5:5:nImageHalfWidth;
       nR = length(pR);
       S = zeros(nR, 1);
@@ -179,6 +179,9 @@ for iSubject = 1:nSubjects
       i = find(hS > 0, 1, 'first');
       if i < 20
         iR = find(hS(i:end) < 1, 1, 'first') + i;
+        if isempty(iR)
+          iR = length(pR);
+        end
       else
         iR = 1;
       end
@@ -186,16 +189,17 @@ for iSubject = 1:nSubjects
   
       M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
       C = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) > (R - 5);
+      CIRCLE = C & M;
 
       H = M .* H;
     end
 
     subplot(4, 4, 4);
-    imshow(H + C & M);
-    title(sprintf('%1.4f', sum(H(:)) / (nImageHalfWidth .^ 2)), 'FontWeight', 'normal');
+    imshow(H + CIRCLE);
+    title(sprintf('size: %1.4f', sum(H(:)) / (nImageHalfWidth .^ 2)), 'FontWeight', 'normal');
   
     % save image
-    aDir = support_fname({aPath, 'leprosy', '_analysis', 'slicing_plots', aSubject});
+    aDir = support_fname({aPath, 'leprosy', '_analysis', ['slicing_plots_', aFilter], aSubject});
     if ~exist(aDir, 'dir')
       mkdir(aDir);
     end
@@ -203,7 +207,6 @@ for iSubject = 1:nSubjects
     print(hFigure, aFilename, '-dpng', '-r300');
     close(hFigure);  
   end
-  o = 0;
 end
 
 end % end
