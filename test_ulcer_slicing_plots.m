@@ -23,9 +23,7 @@ nSubjects = length(tSubjects);
 % loop subjects
 for iSubject = 1:nSubjects
   aSubject = tSubjects{iSubject};
-  % status
-  fprintf(1, '%s\n', aSubject);
-
+  
   % get files
   tFiles = [];
   a = dir(support_fname({aSubpath, aSubject}));
@@ -38,11 +36,14 @@ for iSubject = 1:nSubjects
   end
 
   % loop files
-  nDateRef = [];
+  nDateRef = datetime('now');
   nFiles = length(tFiles);
   for iFile = 1:nFiles
     aFile = tFiles{iFile};
     aFilename = support_fname({aSubpath, aSubject, aFile});
+
+    % status
+    fprintf(1, '%s: %s\n', aSubject, aFile);
 
     % get date
     aDate = aFile((end - 11):(end - 4));
@@ -118,25 +119,35 @@ for iSubject = 1:nSubjects
     H = abs(H(:, :, 2) - H(:, :, 3)) < 10 & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 80;
 
     % circle limit
-    bCircleLimit = 1;
+    bCircleLimit = 1; % must be 1 always
     if bCircleLimit == 1
       x = sum(H, 1); 
       y = sum(H, 2); 
       x = filtfilt(fb, fa, x);
       y = filtfilt(fb, fa, y);
       % min to max
-      h = 5 / 2;
-      ix0 = find(x > h, 1, 'first');
-      ix1 = find(x > h, 1, 'last');
-      iy0 = find(y > h, 1, 'first');
-      iy1 = find(y > h, 1, 'last');
-      ix = (ix1 - ix0) / 2 + ix0;
-      iy = (iy1 - iy0) / 2 + iy0;
+      % h = 5 / 2;
+      % ix0 = find(x > h, 1, 'first');
+      % ix1 = find(x > h, 1, 'last');
+      % iy0 = find(y > h, 1, 'first');
+      % iy1 = find(y > h, 1, 'last');
+      % ix = (ix1 - ix0) / 2 + ix0;
+      % iy = (iy1 - iy0) / 2 + iy0;
       % max
-      [~, ix] = max(x);
-      [~, iy] = max(y);
-      cx = ix - nImageHalfWidth;
-      cy = iy - nImageHalfWidth;
+      % [~, ix] = max(x((nImageHalfWidth - 50):(nImageHalfWidth + 50)));
+      % [~, iy] = max(y((nImageHalfWidth - 50):(nImageHalfWidth + 50)));
+      % ix = ix + nImageHalfWidth - 50;
+      % iy = iy + nImageHalfWidth - 50;
+      % center
+      % ix = nImageHalfWidth;
+      % iy = nImageHalfWidth;
+
+      % cx = ix - nImageHalfWidth;
+      % cy = iy - nImageHalfWidth;
+
+      % assume ulcer in the center
+      cx = 0;
+      cy = 0;
   
       bDebug = 0;
       if bDebug == 1
@@ -146,6 +157,11 @@ for iSubject = 1:nSubjects
         plot(y + nImageHalfWidth, 1:size(H, 1), 'c');
         plot(1:size(H, 2), iy * ones(1, size(H, 2)), 'y');
         plot(ix * ones(1, size(H, 1)), 1:size(H, 1), 'c');
+        % borders
+        % plot(1:size(H, 2), ones(size(x)) * (nImageHalfWidth - 50), 'y');
+        % plot(1:size(H, 2), ones(size(x)) * (nImageHalfWidth + 50), 'y');
+        % plot(ones(size(x)) * (nImageHalfWidth - 50), 1:size(H, 1), 'c');
+        % plot(ones(size(x)) * (nImageHalfWidth + 50), 1:size(H, 1), 'c');
       end
   
       pR = 5:5:nImageHalfWidth;
@@ -156,24 +172,27 @@ for iSubject = 1:nSubjects
         s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
         s = H .* s;
         S(iR) = sum(s(:));
-        % subplot(4, 7, i);
-        % imshow(s);
       end
-      xR = 5;
+      xR = 10;
       dS = [0; diff(S)];
-      [~, i] = max(dS);
-  
-      iR = find(dS(i:end) < xR, 1, 'first') + i;
-  
+      hS = dS > xR;
+      i = find(hS > 0, 1, 'first');
+      if i < 20
+        iR = find(hS(i:end) < 1, 1, 'first') + i;
+      else
+        iR = 1;
+      end
       R = pR(iR);
   
       M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+      C = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) > (R - 5);
 
       H = M .* H;
     end
 
     subplot(4, 4, 4);
-    imshow(H);
+    imshow(H + C & M);
+    title(sprintf('%1.4f', sum(H(:)) / (nImageHalfWidth .^ 2)), 'FontWeight', 'normal');
   
     % save image
     aDir = support_fname({aPath, 'leprosy', '_analysis', 'slicing_plots', aSubject});
@@ -184,6 +203,7 @@ for iSubject = 1:nSubjects
     print(hFigure, aFilename, '-dpng', '-r300');
     close(hFigure);  
   end
+  o = 0;
 end
 
 end % end
