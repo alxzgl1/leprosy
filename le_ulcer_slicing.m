@@ -10,6 +10,9 @@ bCutImage = 1;
 nImageHalfWidth = 350; % in pixels | 350 (default) | stable parameter
 aFilter = 'median'; % 'median' (default), 'lowpass'
 
+dGB = 10; % 10 (default), green - blue difference | detect ulcer
+d2RGB = 80; % 80 (default), 2 * red - green - blue | exclude dark background
+
 % get path
 aPath = support_get_path();
 aSubpath = support_fname({aPath, 'leprosy', 'TABLE_Aranz_Image'});
@@ -22,7 +25,7 @@ nSubjects = length(tSubjects);
 [fb, fa] = butter(4, 0.01, 'low');
 
 % LP filter
-[lfb, lfa] = butter(4, 0.05, 'low');
+[lfb, lfa] = butter(4, 0.02, 'low');
 
 % loop subjects
 for iSubject = 1:nSubjects
@@ -103,7 +106,7 @@ for iSubject = 1:nSubjects
       S = double(J);
     end
 
-    H = abs(H(:, :, 2) - H(:, :, 3)) < 10 & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > 80;
+    H = abs(H(:, :, 2) - H(:, :, 3)) < dGB & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > d2RGB;
 
     % circle limit
     bCircleLimit = 1; % must be 1 always
@@ -138,11 +141,11 @@ for iSubject = 1:nSubjects
         s = H .* s;
         S(iR) = sum(s(:));
       end
-      xR = 10;
+      xR = 10; % threshold
       dS = [0; diff(S)];
       hS = dS > xR;
       i = find(hS > 0, 1, 'first');
-      if i < 20
+      if i < 20 % threshold
         iR = find(hS(i:end) < 1, 1, 'first') + i - 1;
         if isempty(iR)
           iR = length(pR);
@@ -152,11 +155,15 @@ for iSubject = 1:nSubjects
       end
       R = pR(iR);
   
-      M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
-      C = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) > (R - 5);
-      CIRCLE = C & M;
-
-      H = M .* H;
+      bAddCircleToImage = 0; % 0 (default), 1 (visualisation only)
+      if bAddCircleToImage == 1
+        M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+        C = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) > (R - 5);
+        H = M .* H + C & M;
+      else
+        M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+        H = M .* H;
+      end
     end
 
     pUlcerSize(iFile) = sum(H(:)) / (nImageHalfWidth .^ 2);
