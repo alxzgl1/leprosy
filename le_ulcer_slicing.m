@@ -8,7 +8,7 @@ clc;
 % parameters
 bCutImage = 1;
 nImageHalfWidth = 350; % in pixels | 350 (default) | stable parameter
-aFilter = 'median'; % 'median' (default), 'lowpass'
+aFilter = 'median'; % 'median' (default), 'lowpass', 'erode'
 
 dGB = 10; % 10 (default), green - blue difference | detect ulcer
 d2RGB = 80; % 80 (default), 2 * red - green - blue | exclude dark background
@@ -81,7 +81,7 @@ for iSubject = 1:nSubjects
     end
     % median filter
     if strcmp(aFilter, 'median')
-      D = [20, 20];
+      D = [32, 32];
       J_R = medfilt2(I(:, :, 1), D);
       J_G = medfilt2(I(:, :, 2), D);
       J_B = medfilt2(I(:, :, 3), D);
@@ -101,6 +101,14 @@ for iSubject = 1:nSubjects
       J_G = uint8(filtfilt(lfb, lfa, double(J_G)));
       J_B = uint8(filtfilt(lfb, lfa, double(J_B)));
       % init
+      J = cat(3, J_R, J_G, J_B);
+      H = double(J);
+      S = double(J);
+    elseif strcmp(aFilter, 'erode')
+      SE = strel('disk', 10); 
+      J_R = imerode(I(:, :, 1), SE);
+      J_G = imerode(I(:, :, 2), SE);
+      J_B = imerode(I(:, :, 3), SE);
       J = cat(3, J_R, J_G, J_B);
       H = double(J);
       S = double(J);
@@ -164,6 +172,14 @@ for iSubject = 1:nSubjects
         M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
         H = M .* H;
       end
+    end
+
+    % dilate image
+    bDilate = 0;
+    if bDilate == 1
+      nDilateDim = 8;
+      SE = strel('disk', nDilateDim); 
+      H = imdilate(H, SE); 
     end
 
     pUlcerSize(iFile) = sum(H(:)) / (nImageHalfWidth .^ 2);
