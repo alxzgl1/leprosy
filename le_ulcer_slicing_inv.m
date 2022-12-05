@@ -1,7 +1,7 @@
 %-------------------------------------------------------------------------------
 % Function
 %-------------------------------------------------------------------------------
-function le_ulcer_slicing()
+function le_ulcer_slicing_inv()
 
 clc;
 
@@ -79,15 +79,18 @@ for iSubject = 1:nSubjects
 		  I = I(:, :, :); 
 		  I = I((y - d):(y + d), (x - d):(x + d), :);
     end
+
+    % init
+    H = double(I);
+
+    % subtract
+    H = abs(H(:, :, 2) - H(:, :, 3)) < dGB & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > d2RGB;
+
     % median filter
     if strcmp(aFilter, 'median')
       D = [20, 20];
-      J_R = medfilt2(I(:, :, 1), D);
-      J_G = medfilt2(I(:, :, 2), D);
-      J_B = medfilt2(I(:, :, 3), D);
-      J = cat(3, J_R, J_G, J_B);
-      H = double(J);
-      S = double(J);
+      H = medfilt2(H, D);
+      S = double(H);
     elseif strcmp(aFilter, 'lowpass')
       J_R = I(:, :, 1);
       J_G = I(:, :, 2);
@@ -114,7 +117,7 @@ for iSubject = 1:nSubjects
       S = double(J);
     end
 
-    H = abs(H(:, :, 2) - H(:, :, 3)) < dGB & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > d2RGB;
+    % H = abs(H(:, :, 2) - H(:, :, 3)) < dGB & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > d2RGB;
 
     % circle limit
     bCircleLimit = 1; % must be 1 always
@@ -175,9 +178,9 @@ for iSubject = 1:nSubjects
     end
 
     % dilate image
-    bDilate = 0;
+    bDilate = 1;
     if bDilate == 1
-      nDilateDim = 8;
+      nDilateDim = 5;
       SE = strel('disk', nDilateDim); 
       H = imdilate(H, SE); 
     end
