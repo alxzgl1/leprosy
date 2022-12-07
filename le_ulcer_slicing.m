@@ -8,10 +8,15 @@ clc;
 % parameters
 bCutImage = 1;
 nImageHalfWidth = 350; % in pixels | 350 (default) | stable parameter
-aFilter = 'median'; % 'median' (default), 'lowpass', 'erode'
+aFilter = 'lowpass'; % 'median' (default), 'lowpass'
 
 dGB = 10; % 10 (default), green - blue difference | detect ulcer
 d2RGB = 80; % 80 (default), 2 * red - green - blue | exclude dark background
+
+nMedianFilterArea = [32, 32];
+nLowpassFilterParameter = 0.02;
+
+bNeighbourBlobThreshold = 10;
 
 % get path
 aPath = support_get_path();
@@ -25,7 +30,7 @@ nSubjects = length(tSubjects);
 [fb, fa] = butter(4, 0.01, 'low');
 
 % LP filter
-[lfb, lfa] = butter(4, 0.02, 'low');
+[lfb, lfa] = butter(4, nLowpassFilterParameter, 'low');
 
 % loop subjects
 for iSubject = 1:nSubjects
@@ -79,9 +84,10 @@ for iSubject = 1:nSubjects
 		  I = I(:, :, :); 
 		  I = I((y - d):(y + d), (x - d):(x + d), :);
     end
+
     % median filter
     if strcmp(aFilter, 'median')
-      D = [20, 20];
+      D = nMedianFilterArea;
       J_R = medfilt2(I(:, :, 1), D);
       J_G = medfilt2(I(:, :, 2), D);
       J_B = medfilt2(I(:, :, 3), D);
@@ -92,28 +98,21 @@ for iSubject = 1:nSubjects
       J_R = I(:, :, 1);
       J_G = I(:, :, 2);
       J_B = I(:, :, 3);
-      % smooth rows
+      smooth rows
       J_R = uint8(filtfilt(lfb, lfa, double(J_R)')');
       J_G = uint8(filtfilt(lfb, lfa, double(J_G)')');
       J_B = uint8(filtfilt(lfb, lfa, double(J_B)')');
-      % smooth cols
+      smooth cols
       J_R = uint8(filtfilt(lfb, lfa, double(J_R)));
       J_G = uint8(filtfilt(lfb, lfa, double(J_G)));
       J_B = uint8(filtfilt(lfb, lfa, double(J_B)));
-      % init
-      J = cat(3, J_R, J_G, J_B);
-      H = double(J);
-      S = double(J);
-    elseif strcmp(aFilter, 'erode')
-      SE = strel('disk', 10); 
-      J_R = imerode(I(:, :, 1), SE);
-      J_G = imerode(I(:, :, 2), SE);
-      J_B = imerode(I(:, :, 3), SE);
+      init
       J = cat(3, J_R, J_G, J_B);
       H = double(J);
       S = double(J);
     end
 
+    % colour difference
     H = abs(H(:, :, 2) - H(:, :, 3)) < dGB & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > d2RGB;
 
     % circle limit
@@ -149,7 +148,7 @@ for iSubject = 1:nSubjects
         s = H .* s;
         S(iR) = sum(s(:));
       end
-      xR = 10; % threshold
+      xR = bNeighbourBlobThreshold; % threshold
       dS = [0; diff(S)];
       hS = dS > xR;
       i = find(hS > 0, 1, 'first');
@@ -175,11 +174,17 @@ for iSubject = 1:nSubjects
     end
 
     % dilate image
-    bDilate = 0;
-    if bDilate == 1
+    bDilateImage = 0;
+    if bDilateImage == 1
       nDilateDim = 8;
       SE = strel('disk', nDilateDim); 
       H = imdilate(H, SE); 
+    end
+
+    % fill image
+    bFillImage = 1;
+    if bFillImage == 1
+      H = imfill(H, 'holes');
     end
 
     pUlcerSize(iFile) = sum(H(:)) / (nImageHalfWidth .^ 2);
