@@ -13,8 +13,8 @@ aFilter = 'lowpass'; % 'median' (default), 'lowpass'
 dGB = 10; % 10 (default), green - blue difference | detect ulcer
 d2RGB = 80; % 80 (default), 2 * red - green - blue | exclude dark background
 
-nMedianFilterArea = [32, 32];
-nLowpassFilterParameter = 0.02;
+nMedianFilterArea = [32, 32]; % [32, 32] (default)
+nLowpassFilterParameter = 0.01; % 0.01 (default), 0.05
 
 bNeighbourBlobThreshold = 10;
 
@@ -98,15 +98,15 @@ for iSubject = 1:nSubjects
       J_R = I(:, :, 1);
       J_G = I(:, :, 2);
       J_B = I(:, :, 3);
-      smooth rows
+      % smooth rows
       J_R = uint8(filtfilt(lfb, lfa, double(J_R)')');
       J_G = uint8(filtfilt(lfb, lfa, double(J_G)')');
       J_B = uint8(filtfilt(lfb, lfa, double(J_B)')');
-      smooth cols
+      % smooth cols
       J_R = uint8(filtfilt(lfb, lfa, double(J_R)));
       J_G = uint8(filtfilt(lfb, lfa, double(J_G)));
       J_B = uint8(filtfilt(lfb, lfa, double(J_B)));
-      init
+      % init
       J = cat(3, J_R, J_G, J_B);
       H = double(J);
       S = double(J);
