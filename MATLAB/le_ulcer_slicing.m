@@ -81,7 +81,6 @@ for iSubject = 1:nSubjects
       d = nImageHalfWidth;
 		  x = nWidth / 2;
 		  y = nHeight / 2;
-		  I = I(:, :, :); 
 		  I = I((y - d):(y + d), (x - d):(x + d), :);
     end
 
@@ -115,62 +114,59 @@ for iSubject = 1:nSubjects
     % colour difference
     H = abs(H(:, :, 2) - H(:, :, 3)) < dGB & 2 * H(:, :, 1) - H(:, :, 2) - H(:, :, 3) > d2RGB;
 
-    % circle limit
-    bCircleLimit = 1; % must be 1 always
-    if bCircleLimit == 1
-      x = sum(H, 1); 
-      y = sum(H, 2); 
-      x = filtfilt(fb, fa, x);
-      y = filtfilt(fb, fa, y);
-      cx = 0;
-      cy = 0;
-      bDebug = 0;
-      if bDebug == 1
-        figure;
-        imshow(H); hold on;
-        plot(1:size(H, 2), x + nImageHalfWidth, 'y');
-        plot(y + nImageHalfWidth, 1:size(H, 1), 'c');
-        plot(1:size(H, 2), iy * ones(1, size(H, 2)), 'y');
-        plot(ix * ones(1, size(H, 1)), 1:size(H, 1), 'c');
-        % borders
-        % plot(1:size(H, 2), ones(size(x)) * (nImageHalfWidth - 50), 'y');
-        % plot(1:size(H, 2), ones(size(x)) * (nImageHalfWidth + 50), 'y');
-        % plot(ones(size(x)) * (nImageHalfWidth - 50), 1:size(H, 1), 'c');
-        % plot(ones(size(x)) * (nImageHalfWidth + 50), 1:size(H, 1), 'c');
-      end
-      % range circles
-      pR = 5:5:nImageHalfWidth;
-      nR = length(pR);
-      S = zeros(nR, 1);
-      for iR = 1:nR
-        R = pR(iR);
-        s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
-        s = H .* s;
-        S(iR) = sum(s(:));
-      end
-      xR = bNeighbourBlobThreshold; % threshold
-      dS = [0; diff(S)];
-      hS = dS > xR;
-      i = find(hS > 0, 1, 'first');
-      if i < 20 % threshold
-        iR = find(hS(i:end) < 1, 1, 'first') + i - 1;
-        if isempty(iR)
-          iR = length(pR);
-        end
-      else
-        iR = 1;
-      end
+    % circle mask
+    x = sum(H, 1); 
+    y = sum(H, 2); 
+    x = filtfilt(fb, fa, x);
+    y = filtfilt(fb, fa, y);
+    cx = 0;
+    cy = 0;
+    bDebug = 0;
+    if bDebug == 1
+      figure;
+      imshow(H); hold on;
+      plot(1:size(H, 2), x + nImageHalfWidth, 'y');
+      plot(y + nImageHalfWidth, 1:size(H, 1), 'c');
+      plot(1:size(H, 2), iy * ones(1, size(H, 2)), 'y');
+      plot(ix * ones(1, size(H, 1)), 1:size(H, 1), 'c');
+      % borders
+      % plot(1:size(H, 2), ones(size(x)) * (nImageHalfWidth - 50), 'y');
+      % plot(1:size(H, 2), ones(size(x)) * (nImageHalfWidth + 50), 'y');
+      % plot(ones(size(x)) * (nImageHalfWidth - 50), 1:size(H, 1), 'c');
+      % plot(ones(size(x)) * (nImageHalfWidth + 50), 1:size(H, 1), 'c');
+    end
+    % range circles
+    pR = 5:5:nImageHalfWidth;
+    nR = length(pR);
+    S = zeros(nR, 1);
+    for iR = 1:nR
       R = pR(iR);
-  
-      bAddCircleToImage = 0; % 0 (default), 1 (visualisation only)
-      if bAddCircleToImage == 1
-        M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
-        C = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) > (R - 5);
-        H = M .* H + C & M;
-      else
-        M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
-        H = M .* H;
+      s = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+      s = H .* s;
+      S(iR) = sum(s(:));
+    end
+    xR = bNeighbourBlobThreshold; % threshold
+    dS = diff(S); % [0; diff(S)] (?)
+    hS = dS > xR;
+    i = find(hS > 0, 1, 'first');
+    if i < 20 % threshold
+      iR = find(hS(i:end) < 1, 1, 'first') + i - 1;
+      if isempty(iR)
+        iR = length(pR);
       end
+    else
+      iR = 1;
+    end
+    R = pR(iR);
+
+    bAddCircleToImage = 0; % 0 (default), 1 (visualisation only)
+    if bAddCircleToImage == 1
+      M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+      C = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) > (R - 5);
+      H = M .* H + C & M;
+    else
+      M = sqrt(((-nImageHalfWidth:nImageHalfWidth) - cx) .^ 2 + ((-nImageHalfWidth:nImageHalfWidth)' - cy) .^ 2) < R;
+      H = M .* H;
     end
 
     % dilate image
