@@ -13,7 +13,7 @@ dGB = 10 # 10 (default), green - blue difference | detect ulcer
 d2RGB = 80 # 80 (default), 2 * red - green - blue | exclude dark background
 
 nMedianFilterArea = [31, 31] # [32, 32] (default)
-nLowpassFilterParameter = 0.01 # 0.01 (default), 0.05
+nLowpassFilterParameter = 0.02 # 0.02 (default), 0.05
 
 bNeighbourBlobThreshold = 10
 
@@ -63,16 +63,52 @@ elif aFilter == 'lowpass':
   H = J.astype(float)
   S = J.astype(float)
 
-
-
-
-#%%
-
 # colour difference
 H = (np.abs(H[:, :, 1] - H[:, :, 2]) < dGB / 255) & (2 * H[:, :, 0] - H[:, :, 1] - H[:, :, 2] > d2RGB / 255)
 
-#%%
+# circle mask
+x = np.sum(H, axis=0)
+y = np.sum(H, axis=1)
+x = signal.filtfilt(fb, fa, x)
+y = signal.filtfilt(fb, fa, y)
+cx = 0
+cy = 0
+# range circles
+pR = np.arange(5, nImageHalfWidth, 5)
+nR = len(pR)
+S = np.zeros(nR)
+W = np.arange(-nImageHalfWidth, nImageHalfWidth, 1)
+W = np.tile(W, [len(W), 1])
+for iR in range(0, nR):
+  R = pR[iR]
+  s = np.sqrt((W - cx) ** 2 + (W.T - cy) ** 2) < R
+  s = H * s
+  S[iR] = np.sum(s)
+xR = bNeighbourBlobThreshold # threshold
+dS = np.diff(S)
+hS = (dS > xR).astype(float)
+i = np.squeeze(np.where(hS > 0.0))
+i = i[0] # TODO: if isempty()
+if i < 20: # threshold
+  iR = np.squeeze(np.where(hS[i:] < 1.0))
+  iR = iR[0] + i
+  # if not iR: # TODO: if isempty()
+  #   iR = len(pR)
+else:
+  iR = 0
+R = pR[iR]
 
+# apply circle mask
+M = np.sqrt((W - cx) ** 2 + (W.T - cy) ** 2) < R
+H = M * H
+  
+# fill holes
+# see, https://stackoverflow.com/questions/36294025/python-equivalent-to-matlab-funciton-imfill-for-grayscale
+
+# show image
+plt.subplot(1, 2, 1)
+plt.imshow(I)
+plt.axis('off')
+plt.subplot(1, 2, 2)
 plt.imshow(H, cmap='gray')
 plt.axis('off')
-plt.show()
